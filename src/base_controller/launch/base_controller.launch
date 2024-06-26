@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- The drive_bot node -->
+  <node name="base_controller" type="base_controller" pkg="base_controller" output="screen">
+  </node>
+  
+</launch>
