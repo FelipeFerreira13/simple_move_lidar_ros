@@ -12,14 +12,15 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   dynamic_reconfigure
   vmxpi_ros
-  vmxpi_ros_titan
+#   vmxpi_ros_titan
   vmxpi_ros_cobra
   vmxpi_ros_sharp
   vmxpi_ros_ultrasonic
   vmxpi_ros_navx
   vmxpi_ros_servo
   vmxpi_ros_io
-
+  vmxpi_ros_encoder
+  vmxpi_ros_motor
 )
 
 ## System dependencies are found with CMake's conventions
@@ -54,11 +55,13 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
-  ../vmxpi_ros_titan/include
+#   ../vmxpi_ros_titan/include
   ../vmxpi_ros_navx/include
   ../vmxpi_ros_sensors/vmxpi_ros_cobra/include
   ../vmxpi_ros_sensors/vmxpi_ros_sharp/include
   ../vmxpi_ros_sensors/vmxpi_ros_ultrasonic/include
+  ../vmxpi_ros_sensors/vmxpi_ros_encoder/include
+  ../vmxpi_ros_motor/include
   ../vmxpi_ros_servo/include
   ../vmxpi_ros_utils/include
   ../vmxpi_ros_io/include
@@ -73,13 +76,13 @@ add_library(navx_ros_wrapper SHARED IMPORTED GLOBAL)
 # set_target_properties(navx_ros_wrapper PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libnavx_ros_wrapper.so")
 set_target_properties(navx_ros_wrapper PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libnavx_ros_wrapper.so)
 
-add_library(titandriver_ros_wrapper SHARED IMPORTED GLOBAL)
-# set_target_properties(titandriver_ros_wrapper PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libtitandriver_ros_wrapper.so")
-set_target_properties(titandriver_ros_wrapper PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libtitandriver_ros_wrapper.so)
+# add_library(titandriver_ros_wrapper SHARED IMPORTED GLOBAL)
+# # set_target_properties(titandriver_ros_wrapper PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libtitandriver_ros_wrapper.so")
+# set_target_properties(titandriver_ros_wrapper PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libtitandriver_ros_wrapper.so)
 
-add_library(titandriver_ros SHARED IMPORTED GLOBAL)
-# set_target_properties(titandriver_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libtitandriver_ros.so")
-set_target_properties(titandriver_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libtitandriver_ros.so)
+# add_library(titandriver_ros SHARED IMPORTED GLOBAL)
+# # set_target_properties(titandriver_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libtitandriver_ros.so")
+# set_target_properties(titandriver_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libtitandriver_ros.so)
 
 add_library(cobra_ros SHARED IMPORTED GLOBAL)
 set_target_properties(cobra_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libcobra_ros.so)
@@ -95,6 +98,14 @@ set_target_properties(servo_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DI
 add_library(ultrasonic_ros SHARED IMPORTED GLOBAL)
 # set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libultrasonic_ros.so")
 set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libultrasonic_ros.so)
+
+add_library(encoder_ros SHARED IMPORTED GLOBAL)
+# set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libencoder_ros.so")
+set_target_properties(encoder_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libencoder_ros.so)
+
+add_library(motor_ros SHARED IMPORTED GLOBAL)
+# set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libmotor_ros.so")
+set_target_properties(motor_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libmotor_ros.so)
 
 add_library(iowd_ros SHARED IMPORTED GLOBAL)
 # set_target_properties(iowd_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libiowd_ros.so")
@@ -112,12 +123,14 @@ add_executable(test_node src/test_node.cpp)
 target_link_libraries(test_node PRIVATE
 	vmxpi_hal 
 	navx_ros_wrapper 
-	titandriver_ros 
-	titandriver_ros_wrapper 
+	# titandriver_ros 
+	# titandriver_ros_wrapper 
 	cobra_ros 
 	sharp_ros
 	servo_ros 
 	ultrasonic_ros
+	encoder_ros
+	motor_ros
   	iowd_ros
 	digitalin_ros
 	digitalout_ros
@@ -138,12 +151,14 @@ target_link_libraries(test_node PRIVATE
 ) 
 add_dependencies(test_node 
   	navx_ros_wrapper 
-	titandriver_ros 
-	titandriver_ros_wrapper 
+	# titandriver_ros 
+	# titandriver_ros_wrapper 
 	cobra_ros 
 	sharp_ros
 	servo_ros 
 	ultrasonic_ros
+	encoder_ros
+	motor_ros
   	iowd_ros
 	digitalin_ros
 	digitalout_ros
@@ -154,12 +169,14 @@ add_executable(main_node src/main.cpp)
 target_link_libraries(main_node PRIVATE
 	vmxpi_hal 
 	navx_ros_wrapper 
-	titandriver_ros 
-	titandriver_ros_wrapper 
+	# titandriver_ros 
+	# titandriver_ros_wrapper 
 	cobra_ros 
 	sharp_ros
 	servo_ros 
 	ultrasonic_ros
+	encoder_ros
+	motor_ros
   	iowd_ros
 	digitalin_ros
 	digitalout_ros
@@ -167,12 +184,14 @@ target_link_libraries(main_node PRIVATE
 )
 add_dependencies(main_node 
   	navx_ros_wrapper 
-	titandriver_ros 
-	titandriver_ros_wrapper 
+	# titandriver_ros 
+	# titandriver_ros_wrapper 
 	cobra_ros 
 	sharp_ros
 	servo_ros 
 	ultrasonic_ros
+	encoder_ros
+	motor_ros
   	iowd_ros
 	digitalin_ros
 	digitalout_ros

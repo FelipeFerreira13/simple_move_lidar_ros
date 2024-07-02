@@ -1,9 +1,11 @@
-#include "TitanDriver_ros_wrapper.h"
+// #include "TitanDriver_ros_wrapper.h"
 #include "navX_ros_wrapper.h"
-#include "Cobra_ros.h"
-#include "Sharp_ros.h"
-#include "Servo_ros.h"
-#include "Ultrasonic_ros.h"
+// #include "Cobra_ros.h"
+// #include "Sharp_ros.h"
+// #include "Servo_ros.h"
+// #include "Ultrasonic_ros.h"
+#include "encoder_ros.h"
+#include "motor_ros.h"
 #include "IOwd_ros.h"
 #include "DI_ros.h"
 #include "DO_ros.h"
@@ -12,484 +14,361 @@
 #include <dynamic_reconfigure/server.h>
 #include <vmxpi_ros_bringup/MotorSpeedConfig.h>
 #include <std_msgs/Float32.h>
+#include <std_msgs/Int32.h>
 #include <vmxpi_ros/Float.h>
 #include <cmath>
 
-static double leftSpeed, rightSpeed, backSpeed, right_encoder, back_encoder, left_encoder;
-static double left_count, right_count, back_count;
-static double ocv_leftSpeed, ocv_rightSpeed, ocv_backSpeed;
-static double displacex, displacey, magnitude_t, angle, angle_t;
+#include <time.h>
+#include <math.h>
+
+#include <geometry_msgs/Twist.h>
+
+#include "vmxpi_ros_motor/pwm.h"
+
+
+static double leftVelocity, rightVelocity, backVelocity, elevatorVelocity; 
+static double desired_back_speed, desired_right_speed, desired_left_speed;
+static double left_enc, right_enc, back_enc, elevator_enc;
 static double PI = 3.14159265;
+static double wheelRadius = 0.0625; //Wheel Radius
+static double frameRadius = 0.150;  //Frame Radius
+static double ticksPerRev = 1464;   //Encoder Ticks per Revolution
 
-// Callbacks for OpenCV object tracking
-void lmotorCallback(const std_msgs::Float32::ConstPtr& msg)
-{
-    ocv_leftSpeed = msg->data;
-}
-void rmotorCallback(const std_msgs::Float32::ConstPtr& msg)
-{
-    ocv_rightSpeed = msg->data;
-}
-void bmotorCallback(const std_msgs::Float32::ConstPtr& msg)
-{
-    ocv_backSpeed = msg->data;
-}
+double cmd_vel_x, cmd_vel_y, cmd_vel_th;
+double Rpm_conversion = ((2 * PI) / 60.0) * wheelRadius; //RPM to m/s
 
-// Callbacks for Encoder Distance values
-void motor0Callback(const std_msgs::Float32::ConstPtr& msg)
-{
-    right_encoder = msg->data;
-}
-void motor1Callback(const std_msgs::Float32::ConstPtr& msg)
-{
-    back_encoder = msg->data;
-}
-void motor3Callback(const std_msgs::Float32::ConstPtr& msg)
-{
-    left_encoder = msg->data;
-}
-void angleCallback(const std_msgs::Float32::ConstPtr& msg)
-{
-    angle = abs(msg->data);
-}
-void yawCallback(const std_msgs::Float32::ConstPtr& msg)
-{
-    angle_t = msg->data;
-}
+void cmd_vel_callback(const geometry_msgs::Twist::ConstPtr& cmd_vel){
+    // Convert the velocity command to individual wheel commands
+    cmd_vel_x = cmd_vel->linear.x;
+    cmd_vel_y = cmd_vel->linear.y;
+    cmd_vel_th = cmd_vel->angular.z; }
 
 // Callbacks for Encoder count values
-void enc0Callback(const std_msgs::Int32::ConstPtr& msg)
-{
-    right_count = msg->data;
-}
-void enc1Callback(const std_msgs::Int32::ConstPtr& msg)
-{
-    back_count = msg->data;
-}
-void enc3Callback(const std_msgs::Int32::ConstPtr& msg)
-{
-    left_count = msg->data;
-}
+void enc0Callback(const std_msgs::Int32::ConstPtr& msg){left_enc = msg->data;}
+void enc1Callback(const std_msgs::Int32::ConstPtr& msg){right_enc  = msg->data;}
+void enc2Callback(const std_msgs::Int32::ConstPtr& msg){back_enc  = msg->data;}
+void enc3Callback(const std_msgs::Int32::ConstPtr& msg){elevator_enc   = msg->data;}
+
+
+
+class PID{
+    public:
+        double tau = 0.02, T = 0.1;
+        double kP, kI, kD, error;
+        double limMin = -1.0, limMax = 1.0, limMinInt = -0.5, limMaxInt = 0.5;
+        bool atSetpoint;
+        double integrator, prevError, differentiator, prevMeasurement, output;
+        double sumError;
+
+
+        void PIDReset()
+        {
+            kP = 0.0;
+            kI = 0.0;
+            kD = 0.0;
+            error = 0.0;
+            integrator = 0.0;
+            prevError = 0.0;
+            differentiator = 0.0;
+            prevMeasurement = 0.0;
+            atSetpoint = false;
+            output = 0.0;
+            sumError = 0;
+        }
+        void setPID(double Kp, double Ki, double Kd)
+        {
+            kP = Kp;
+            kI = Ki;
+            kD = Kd;
+        }
+        void setPIDLimits(double LimMin, double LimMax)
+        {
+            limMin = LimMin; 
+            limMax = LimMax; 
+        }
+
+        double calculate(double setPoint, double measurement, double tolerance)
+        {
+            if (setPoint > limMax)    { setPoint = limMax; }
+            else if (setPoint < limMin)   { setPoint = limMin; }
+
+            //Error
+            error = setPoint - measurement;
+
+            //Proportional
+            double proportional = kP * error;
+
+            if ((error == 0) && (prevError == 0) ){//|| error/abs(error) != prevError/abs(prevError)){
+                sumError = 0;
+            }
+            else{
+                sumError = sumError + error;
+            }
+
+            integrator = kI * sumError;
+            //Integral
+            //integrator = integrator + 0.5 * kI * T * (error + prevError);
+
+            //Band limit derivative
+            differentiator = -(2.0 * kD * (measurement - prevMeasurement) + (2.0 * tau - T) * differentiator) / (2.0 * tau + T);
+
+            //Compute
+            output = proportional + integrator + differentiator;
+
+            //Clamp
+            if (output > limMax)    { output = limMax; }
+            else if (output < limMin)   { output = limMin; }
+
+            //Store variables
+            prevError = error;
+            prevMeasurement = measurement;
+            
+            //Return final value
+            return output;
+        }
+};
+
+PID PID_x;
+PID PID_y;
+PID PID_th;
 
 class DynamicReconfig {
     bool flag = true;
-    double integrator, prevError, differentiator, prevMeasurement, output;
-    double prev_angle = 0.0;
+    double error, vx, vy, vth;
 
 public:
-    ros::ServiceClient set_m_speed, enable_client, disable_client;
-    ros::ServiceClient resetAngle, res_encoder_client, stop_motors_client;
+    ros::ServiceClient enable_client, disable_client;
+    ros::ServiceClient resetAngle, res_encoder_client;
 
-    ros::Subscriber lmotor_sub, rmotor_sub, bmotor_sub;
-    ros::Subscriber motor0_dist, motor1_dist, motor3_dist, angle_sub, yawAngle_sub;
-    ros::Subscriber enc0_sub, enc1_sub, enc3_sub;
-    ros::Publisher displacex_pub, displacey_pub, magnitude_pub, lmotor_PID_pub, rmotor_PID_pub, bmotor_PID_pub, error_pub;
+    ros::ServiceClient set_m0_pwm, set_m1_pwm, set_m2_pwm, set_m3_pwm;
+    ros::ServiceClient stop_m0_pwm, stop_m1_pwm, stop_m2_pwm, stop_m3_pwm;
 
-    double tau = 0.02, T = 0.02;
-    //double tolerance = 1.0; // Tolerance of Encoder distances(mm) and angle(deg)
-    double kP, kI, kD, error;
-    double limMin = -1.0, limMax = 1.0, limMinInt = -0.5, limMaxInt = 0.5;
-    bool atSetpoint;
+    ros::Subscriber enc0_pub, enc1_pub, enc2_pub, enc3_pub;
+
+    ros::Publisher vx_local_pub, vy_local_pub, vth_local_pub, error_pub;
 
     DynamicReconfig(ros::NodeHandle *nh) {
-        set_m_speed = nh->serviceClient<vmxpi_ros::MotorSpeed>("titan/set_motor_speed");
-        lmotor_sub = nh->subscribe("auto_motor_left", 1, lmotorCallback);
-        rmotor_sub = nh->subscribe("auto_motor_right", 1, rmotorCallback);
-        bmotor_sub = nh->subscribe("auto_motor_back", 1, bmotorCallback);
 
-        motor0_dist = nh->subscribe("titan/encoder0/distance", 1, motor0Callback);
-        motor1_dist = nh->subscribe("titan/encoder1/distance", 1, motor1Callback);
-        motor3_dist = nh->subscribe("titan/encoder3/distance", 1, motor3Callback);
-        angle_sub = nh->subscribe("navx/angle", 1, angleCallback);
-        yawAngle_sub = nh->subscribe("navx/yaw", 1, yawCallback);
+        ros::Subscriber cmd_vel_sub = nh->subscribe("/cmd_vel", 10, cmd_vel_callback);
 
-        enc0_sub = nh->subscribe("titan/encoder0/count", 1, enc0Callback);
-        enc1_sub = nh->subscribe("titan/encoder1/count", 1, enc1Callback);
-        enc3_sub = nh->subscribe("titan/encoder3/count", 1, enc3Callback);
+        set_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/set_motor_pwm");
+        set_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/set_motor_pwm");
+        set_m2_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/2/set_motor_pwm");
+        set_m3_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/3/set_motor_pwm");
 
-        displacex_pub = nh->advertise<std_msgs::Float32>("displace_x", 1);
-        displacey_pub = nh->advertise<std_msgs::Float32>("displace_y", 1);
-        magnitude_pub = nh->advertise<std_msgs::Float32>("magnitude", 1);
+        stop_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/stop_motor");
+        stop_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/stop_motor");
+        stop_m2_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/2/stop_motor");
+        stop_m3_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/3/stop_motor");
 
-        lmotor_PID_pub = nh->advertise<std_msgs::Float32>("lmotor_PID", 1);
-        rmotor_PID_pub = nh->advertise<std_msgs::Float32>("rmotor_PID", 1);
-        bmotor_PID_pub = nh->advertise<std_msgs::Float32>("bmotor_PID", 1);
+        enc0_pub = nh->subscribe("channel/0/encoder/count", 1, enc0Callback);
+        enc1_pub = nh->subscribe("channel/1/encoder/count", 1, enc1Callback);
+        enc2_pub = nh->subscribe("channel/2/encoder/count", 1, enc2Callback);
+        enc3_pub = nh->subscribe("channel/3/encoder/count", 1, enc3Callback);
+
+        vx_local_pub  = nh->advertise<std_msgs::Float32>("vx_local",  10);
+        vy_local_pub  = nh->advertise<std_msgs::Float32>("vy_local",  10);
+        vth_local_pub = nh->advertise<std_msgs::Float32>("vth_local", 10);
+
         error_pub = nh->advertise<std_msgs::Float32>("error", 1);
 
-        enable_client = nh->serviceClient<std_srvs::Trigger>("titan/enable");
-        disable_client = nh->serviceClient<std_srvs::Trigger>("titan/disable");
-
         resetAngle = nh->serviceClient<std_srvs::Empty>("reset_navx");
-        res_encoder_client = nh->serviceClient<std_srvs::Trigger>("titan/reset_encoder");
-        stop_motors_client = nh->serviceClient<std_srvs::Trigger>("titan/stop_motors");
     }
 
-    void PIDReset()
+
+
+    void DirectKinematics()
     {
-        kP = 0.0;
-        kI = 0.0;
-        kD = 0.0;
-        error = 0.0;
-        integrator = 0.0;
-        prevError = 0.0;
-        differentiator = 0.0;
-        prevMeasurement = 0.0;
-        atSetpoint = false;
-        output = 0.0;
+        //Forward Kinematics
+        vx   = ( (      0     * backVelocity ) + ( (1.0/sqrt(3.0)) * rightVelocity) + ( (-1.0/sqrt(3.0)) * leftVelocity) );                // [m/s]
+        vy   = ( ( (-2.0/3.0) * backVelocity ) + (    (1.0/3.0)    * rightVelocity) + (     (1.0/3.0)    * leftVelocity) );                // [m/s]
+        vth  = ( ( ( 1.0/3.0) * backVelocity ) + (    (1.0/3.0)    * rightVelocity) + (     (1.0/3.0)    * leftVelocity) ) / frameRadius ; // [rad/s]
+
+        ROS_INFO( "vx: %f", vx);
+        ROS_INFO( "vy: %f", vy);
+        ROS_INFO( "vth: %f", vth);
     }
 
-    double calculate(double setPoint, double measurement, double tolerance)
+    void InverseKinematis(double desired_vx, double desired_vy, double desired_vth)
     {
-        /*
-         * Error
-         */
-        error = setPoint - measurement;
+        //Inverse Kinematics
+        desired_back_speed  = ( (-cos(PI/2)    * desired_vx) + (-sin(PI/2)    * desired_vy) + ( frameRadius * desired_vth) );  // [m/s]
+        desired_right_speed = ( (-cos(7*PI/6)  * desired_vx) + (-sin(7*PI/6)  * desired_vy) + ( frameRadius * desired_vth) );  // [m/s]
+        desired_left_speed  = ( (-cos(11*PI/6) * desired_vx) + (-sin(11*PI/6) * desired_vy) + ( frameRadius * desired_vth) );  // [m/s]
 
-        /*
-         * Setpoint check
-         */
-        if (abs(error) <= tolerance)
-        {
-            atSetpoint = true;
-            return 0.0;
-        }
-        else
-        {
-            atSetpoint = false;
-        }
+        double max = 0.700;   // m/s to PWM
 
-        /*
-         * Proportional
-         */
-        double proportional = kP * error;
-
-        /*
-         * Integral
-         */
-        integrator = integrator + 0.5 * kI * T * (error + prevError);
-
-        /*
-         * Anti Wind up
-         */
-        if (integrator > limMaxInt)
-        {
-            integrator = limMaxInt;
-        }
-        else if (integrator < limMinInt)
-        {
-            integrator = limMinInt;
-        }
-
-        /*
-         * Band limit derivative
-         */
-        differentiator = -(2.0 * kD * (measurement - prevMeasurement) + (2.0 * tau - T) * differentiator) / (2.0 * tau + T);
-
-        /*
-         * Compute
-         */
-        output = proportional + integrator + differentiator;
-
-        /*
-         * Clamp
-         */
-        if (output > limMax)
-        {
-            output = limMax;
-        }
-        else if (output < limMin)
-        {
-            output = limMin;
-        }
-
-        /*
-         * Store variables
-         */
-        prevError = error;
-        prevMeasurement = measurement;
-
-        /*
-         * Return final value
-         */
-        return output;
+        desired_back_speed  = desired_back_speed  / max;
+        desired_right_speed = desired_right_speed / max;
+        desired_left_speed  = desired_left_speed  / max;
+        
+        ROS_INFO( "desired_back_speed: %f",   desired_back_speed);
+        ROS_INFO( "desired_right_speed: %f",  desired_right_speed);
+        ROS_INFO( "desired_left_speed: %f",   desired_left_speed);
     }
 
-    void encoder2dist()
-    {
-        //Displace forward and back
-        displacey = ((left_encoder * (sqrt(3) / 2)) + ((right_encoder * (sqrt(3) / 2)) * -1)) * -0.68;
-        //displacey = (left_encoder + right_encoder) / -1.5;
-        //displacey = left_encoder * (sqrt(3) / 2);
-        displacey /= 1000;
+    void GetWheelsSpeed(){
+        // double current_time = ros::Time::now().toSec();
+        // double delta_time = double(current_time - previous_time) / 1000.0; // [s]
+        // double previous_time = current_time;
 
-        //Dispace left and right
-        //displacex = back_encoder;
-        displacex = (back_encoder + (left_encoder * -0.5) + (right_encoder * -0.5)) * 0.70;
-        displacex /= 1000;
+        // double current_enc_l = left_enc;
+        // double delta_enc_l = current_enc_l - previous_enc_l;
+        // double previous_enc_l = current_enc_l;
 
-        magnitude_t = sqrt(pow(abs(displacex), 2.0) + pow(abs(displacey), 2.0));
+        // double current_enc_r = right_enc;
+        // double delta_enc_r = current_enc_r - previous_enc_r;
+        // double previous_enc_r = current_enc_r;
+
+        // double current_enc_b = back_enc;
+        // double delta_enc_b = current_enc_b - previous_enc_b;
+        // double previous_enc_b = current_enc_b;
+
+        double current_time = ros::Time::now().toSec();
+        static double previous_time = current_time;
+        double delta_time = double(current_time - previous_time) / 1000.0; // [s]
+        previous_time = current_time;
+
+        double current_enc_l = left_enc;
+        static double previous_enc_l = current_enc_l;
+        double delta_enc_l = current_enc_l - previous_enc_l;
+        previous_enc_l = current_enc_l;
+
+        double current_enc_r = right_enc;
+        static double previous_enc_r = current_enc_r;
+        double delta_enc_r = current_enc_r - previous_enc_r;
+        previous_enc_r = current_enc_r;
+
+        double current_enc_b = back_enc;
+        static double previous_enc_b = current_enc_b;
+        double delta_enc_b = current_enc_b - previous_enc_b;
+        previous_enc_b = current_enc_b;
+
+        //Wheels Velocity
+        leftVelocity  = -1 * (((2 * PI * wheelRadius * delta_enc_l) / (ticksPerRev * delta_time)));   // [m/s]
+        rightVelocity = -1 * (((2 * PI * wheelRadius * delta_enc_r) / (ticksPerRev * delta_time)));   // [m/s]
+        backVelocity  = -1 * (((2 * PI * wheelRadius * delta_enc_b) / (ticksPerRev * delta_time)));   // [m/s]
+
+        if ( isnan(leftVelocity)  || isinf(leftVelocity) ) { leftVelocity  = 0; }
+        if ( isnan(rightVelocity) || isinf(rightVelocity) ){ rightVelocity = 0; }
+        if ( isnan(backVelocity)  || isinf(backVelocity) ) { backVelocity  = 0; }
+
+        ROS_INFO( "leftVelocity: %f",   leftVelocity);
+        ROS_INFO( "rightVelocity: %f",  rightVelocity);
+        ROS_INFO( "backVelocity: %f",   backVelocity);
     }
 
-    void PubDisplacements()
+    void PubVelocity()
     {
         std_msgs::Float32 msg;
-        msg.data = displacex;
-        displacex_pub.publish(msg);
-        msg.data = displacey;
-        displacey_pub.publish(msg);
-        msg.data = magnitude_t;
-        magnitude_pub.publish(msg);
-
-        msg.data = leftSpeed;
-        lmotor_PID_pub.publish(msg);
-
-        msg.data = rightSpeed;
-        rmotor_PID_pub.publish(msg);
-
-        msg.data = backSpeed;
-        bmotor_PID_pub.publish(msg);
+        msg.data = vx;
+        vx_local_pub.publish(msg);
+        msg.data = vy;
+        vy_local_pub.publish(msg);
+        msg.data = vth;
+        vth_local_pub.publish(msg);
 
         msg.data = error;
         error_pub.publish(msg);
     }
 
-    void holonomicDrive(double x, double y, double z)
-    {
-        rightSpeed = (x / 2) + (-(y * (sqrt(3) / 2))) + z;
-        leftSpeed = (x / 2) + (y * sqrt(3) / 2) + z;
-        backSpeed = -x + z;
-
-        double max = abs(rightSpeed);
-        if (abs(leftSpeed) > max)
-        {
-            max = abs(leftSpeed);
-        }
-        if (abs(backSpeed) > max)
-        {
-            max = abs(backSpeed);
-        }
-        if (max > 1)
-        {
-            rightSpeed /= max;
-            leftSpeed /= max;
-            backSpeed /= max;
-        }
-    }
-
     void reset()
     {
-        std_srvs::Trigger msg1;
-        stop_motors_client.call(msg1); // Stops motors
-        res_encoder_client.call(msg1); // Resets displacement encoders
+        stop_motors();
         std_srvs::Empty msg2;
         resetAngle.call(msg2); // Resets yaw variable
-    }
-
-    void setPID(double Kp, double Ki, double Kd)
-    {
-        kP = Kp;
-        kI = Ki;
-        kD = Kd;
+        vx = 0;
+        vy = 0;
+        vth = 0;
+        PubVelocity();
     }
     
     void stop_motors()
     {
-        vmxpi_ros::MotorSpeed msg1;
+        vmxpi_ros_motor::pwm msg1;
+        msg1.request.pwm = 0.0;
 
-        msg1.request.speed = 0.0;
-        msg1.request.motor = 0;
-        set_m_speed.call(msg1);
+        set_m0_pwm.call(msg1);
+        set_m1_pwm.call(msg1);
+        set_m2_pwm.call(msg1);
+        set_m3_pwm.call(msg1);
 
-        msg1.request.speed = 0.0;
-        msg1.request.motor = 1;
-        set_m_speed.call(msg1);
+        ros::Duration(1).sleep();
 
-        msg1.request.speed = 0.0;
-        msg1.request.motor = 3;
-        set_m_speed.call(msg1);
-    }
-    
-    void setMovements(double magnitude, double Angle)
-    {
-        if (prev_angle > Angle)
-        {
-            Angle = Angle - prev_angle + 360.0;
-        }
-        else
-            Angle = Angle - prev_angle;
-
-        double target_x_displace = magnitude * cos(abs(Angle) * PI / 180.0);
-        double target_y_displace = magnitude * sin(abs(Angle) * PI / 180.0);
-
-        ros::Rate loop_rate(50);
-        while (ros::ok())
-        {
-            holonomicDrive(0.0, 0.0, 0.0); //Check step to zero the motors
-
-            if (flag == true)
-            {
-                reset();
-                displacex = 0;
-                displacey = 0;
-                angle = 0;
-                PIDReset();
-                flag = false;
-            }
-            
-            setPID(0.95, 0.0, 0.001);
-            double x_drive = calculate(target_x_displace, displacex, 0.001);
-            
-            //setPID(0.9, 0.0, 0.005);
-            double y_drive = calculate(target_y_displace, displacey, 0.001);
-            
-            setPID(0.050, 0.0, 0.0);
-            double angle_drive = calculate(0.0, angle_t, 0.0);
-
-            holonomicDrive(x_drive, y_drive, angle_drive);
-            
-            publish_motors();
-            encoder2dist();
-            PubDisplacements();
-
-            if (magnitude_t >= abs(magnitude))
-            {
-                displacex = 0;
-                displacey = 0;
-                angle = 0;
-                PIDReset();
-                reset();
-                flag = true;
-                break;
-            }
-
-            ros::spinOnce();
-            loop_rate.sleep();
-        }
+        stop_m0_pwm.call(msg1);
+        stop_m1_pwm.call(msg1);
+        stop_m2_pwm.call(msg1);
+        stop_m3_pwm.call(msg1);
     }
 
-    void setAngle(double target_angle)
+    //Set the wheels speed according to linear (m/s) and angular (RAD/s) velocities
+    void setMovements(double desired_vx, double desired_vy, double desired_vth)
     {
-        ros::Rate loop_rate(100);
-        while (ros::ok())
-        {
-            holonomicDrive(0.0, 0.0, 0.0); //Check step to zero the motors
-
-            if (flag == true)
-            {
-                reset();
-                flag = false;
-            }
-
-            setPID(0.1, 0.0, 0.0);
-            double angle_drive = calculate(target_angle, angle_t, 1.0);
-            if (angle < target_angle)
-            {
-                holonomicDrive(0.0, 0.0, -0.3); // Counter-clockwise is positive angle
-            }
-            else if (angle > target_angle)
-            {
-                holonomicDrive(0.0, 0.0, 0.3); // Clockwise is negative angle
-            }
-
-            publish_motors();
-            encoder2dist();
-            PubDisplacements();
-
-            if (angle > abs(target_angle))
-            {
-                reset();
-                displacex = 0;
-                displacey = 0;
-                prev_angle += angle;
-                angle = 0;
-                flag = true;
-                break;
-            }
-
-            ros::spinOnce();
-            loop_rate.sleep();
+        if (flag == true) {
+            reset();
+            PID_x.PIDReset();
+            PID_y.PIDReset();
+            PID_th.PIDReset();
+            flag = false;
         }
+        
+        DirectKinematics();
+
+        PID_x.setPID(0.4, 0.08, 0.0);
+        PID_x.setPIDLimits(-0.300, 0.300);
+        double x_drive = PID_x.calculate(desired_vx, vx, 0.0);
+
+        PID_y.setPID(0.4, 0.08, 0.0);
+        PID_y.setPIDLimits(-0.300, 0.300);
+        double y_drive = PID_y.calculate(desired_vy, vy, 0.0);
+                    
+        PID_th.setPID(0.5, 0.085, 0.0);
+        PID_th.setPIDLimits(-1.5, 1.5);
+        double angle_drive = PID_th.calculate(desired_vth, vth, 0.0);
+
+        InverseKinematis(x_drive, y_drive, angle_drive);
+                
     }
 
     void publish_motors()
     {
-        vmxpi_ros::MotorSpeed msg1;
+        vmxpi_ros_motor::pwm msg1;
 
-        msg1.request.speed = rightSpeed;
-        msg1.request.motor = 0;
-        set_m_speed.call(msg1);
+        msg1.request.pwm = desired_left_speed;
+        set_m0_pwm.call(msg1);
 
-        msg1.request.speed = backSpeed;
-        msg1.request.motor = 1;
-        set_m_speed.call(msg1);
+        msg1.request.pwm = desired_right_speed;
+        set_m1_pwm.call(msg1);
 
-        msg1.request.speed = leftSpeed;
-        msg1.request.motor = 3;
-        set_m_speed.call(msg1);
+        msg1.request.pwm = desired_back_speed;
+        set_m2_pwm.call(msg1);
     }
 
     void callback(vmxpi_ros_bringup::MotorSpeedConfig &config, uint32_t level) {
-        std_srvs::Trigger msg;
-        if (config.enabled)
-            enable_client.call(msg);
-        else
-            disable_client.call(msg);
-        
-        //setMovements(1.0, 45.0);
-        //ros::Duration(1.0).sleep(); // sleep for 1 second
-        //setMovements(1.0, 225.0);
-        
-        //setMovements(1.0, 60.0);
-        //ros::Duration(1.0).sleep(); // sleep for 1 second
-        //setMovements(1.0, 240.0);
 
-        /*while (ros::ok())
-        {
-            holonomicDrive(0.0, 0.0, 0.0);
+        reset();
+
+        ros::Rate loop_rate(10);
+
+        while (ros::ok()){
+
+            GetWheelsSpeed();
+
+            setMovements(cmd_vel_x, cmd_vel_y, cmd_vel_th); // (Linear velocity, angular velocity)
+
             publish_motors();
-            encoder2dist();
-            PubDisplacements();
-        }*/
+            PubVelocity();
 
-        // Uncomment to set the movements of the robot
-        for (int i = 0; i < 1; i++)
-        {
-             reset();
-             setMovements(1.0, 0.0); // (magnitude (m), angle (deg))
-             ros::Duration(1.5).sleep(); // sleep for 1 second
-             
-             setMovements(1.0, 90.0);
-             ros::Duration(1.5).sleep(); // sleep for 1 second
-             
-             setMovements(sqrt(2.0), 225.0);
-             ros::Duration(1.5).sleep(); // sleep for 1 second
-             
+            ROS_INFO("cmd_vel_x: %f", cmd_vel_x);
+            ROS_INFO("cmd_vel_y: %f", cmd_vel_y);
+            ROS_INFO("cmd_vel_th: %f", cmd_vel_th);
+            
+            ros::spinOnce();
+            loop_rate.sleep();
         }
 
-        // Uncomment for OpenCV Cube Tracking Demo
-        /* vmxpi_ros::MotorSpeed msg1;
-
-         config.motor0_speed = ocv_rightSpeed;
-         msg1.request.speed = config.motor0_speed;
-         msg1.request.motor = 0;
-         set_m_speed.call(msg1);
-
-         config.motor1_speed = ocv_backSpeed;
-         msg1.request.speed = config.motor1_speed;
-         msg1.request.motor = 1;
-         set_m_speed.call(msg1);
-
-         msg1.request.speed = config.motor2_speed;
-         msg1.request.motor = 2;
-         set_m_speed.call(msg1);
-
-         config.motor3_speed = ocv_leftSpeed;
-         msg1.request.speed = config.motor3_speed;
-         msg1.request.motor = 3;
-         set_m_speed.call(msg1);
-         */
+        reset();
     }
-
 };
 
 int main(int argc, char **argv) {
@@ -498,7 +377,7 @@ int main(int argc, char **argv) {
     
     ROS_INFO_STREAM("Main thread: " << syscall(SYS_gettid));
 
-    ros::init(argc, argv, "vmxpi_ros_wrapper");
+    ros::init(argc, argv, "Robot_Interface");
 
     ros::NodeHandle nh;
     VMXPi vmx(true, (uint8_t)50);
@@ -507,42 +386,24 @@ int main(int argc, char **argv) {
     ros::AsyncSpinner spinner(4);
     spinner.start();
 
-    IOWatchdogROS watchdog(&nh, &vmx);
-    ROS_INFO("IOWatchdog is now started");
-    
-    DigitalOutputROS d_o(&nh, &vmx, 10);
-    ROS_INFO("Digital Output is now started");
-    
-    DigitalInputROS d_i(&nh, &vmx, 11);
-    ROS_INFO("Digital Input is now started");
+    EncoderRos encoder_0(&nh, &vmx, 0);     // Left
+    EncoderRos encoder_1(&nh, &vmx, 1);     // Right
+    EncoderRos encoder_2(&nh, &vmx, 2);     // Back
+    EncoderRos encoder_3(&nh, &vmx, 3);     // Elevator
 
-    TitanDriverROSWrapper titan(&nh, &vmx);
-    ROS_INFO("Titan driver is now started");
+    MotorRos motor_0(&nh, &vmx, 0, 21, 20);   // Left
+    MotorRos motor_1(&nh, &vmx, 1, 19, 18);   // Right
+    MotorRos motor_2(&nh, &vmx, 2, 17, 16);   // Back
+    MotorRos motor_3(&nh, &vmx, 3, 15, 14);   // Elevator
 
-    navXROSWrapper navx(&nh, &vmx);
-    ROS_INFO("navX driver is now started");
+    navXROSWrapper navx_local(&nh, &vmx);
+    ROS_INFO("navX_local driver is now started");
 
-    CobraROS cobra(&nh, &vmx);
-    ROS_INFO("Cobra driver is now started");
-
-    SharpROS sharp(&nh, &vmx);
-    ROS_INFO("Sharp driver is now started");
-
-    ServoROS servo(&nh, &vmx, 13);
-    ROS_INFO("Servo driver is now started");
-
-    UltrasonicROS ultrasonic(&nh, &vmx, 8, 9);
-    ROS_INFO("Ultrasonic driver is now started");
-    ultrasonic.Ultrasonic();
-
-
-    //while (ros::ok()) { // Uncomment for OpenCV Cube Tracking Demo
     DynamicReconfig cfg(&nh);
     dynamic_reconfigure::Server<vmxpi_ros_bringup::MotorSpeedConfig> server;
     dynamic_reconfigure::Server<vmxpi_ros_bringup::MotorSpeedConfig>::CallbackType f;
     f = boost::bind(&DynamicReconfig::callback, &cfg, _1, _2);
     server.setCallback(f);
-    // }
 
     ROS_INFO("ROS SHUTDOWN");
     ros::waitForShutdown();
