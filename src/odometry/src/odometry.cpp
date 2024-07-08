@@ -1,3 +1,14 @@
+/************************************
+ * Author: Felipe Ferreira
+ * Release version: 1.0.0.0
+ * Release date: 27/06/2024
+ * 
+ * Modified by: Felipe Ferreira
+ * Last modification date: 08/07/2024
+ * New version: 1.0.0.1
+
+*************************************/
+
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
@@ -26,7 +37,15 @@ static double thDiff = 0;
 static double navxAngle = 0;
 static double navxDiff = 0;
 
+static double lidar_angle = -90;
+
 void setPosition( double x, double y, double th);
+double Quotient_Remainder( double x, double y );
+double ToDegrees(double x);
+double ToRadian(double x);
+double AngleLogic( double x, double ref );
+void rotate( double x, double y, double phi, double *v);
+
 
 void poseCallback(const geometry_msgs::Pose2D::ConstPtr& pose){
   LidarX = pose->x;
@@ -59,7 +78,9 @@ int main(int argc, char** argv){
   double last_y = 0;
   double last_th = 0;
 
-  setPosition(0.530, 0.320, 0); //Set initial Position
+  ros::Duration(5).sleep();
+
+  setPosition(0.0, 0.0, 90.0); //Set initial Position
 
   ros::Rate r(10);
   while(n.ok()){
@@ -67,23 +88,23 @@ int main(int argc, char** argv){
     ros::spinOnce();               // check for incoming messages
     current_time = ros::Time::now();
 
-    x  = LidarX + xDiff;
-    y = LidarY + yDiff;
-    th = (LidarTheta + thDiff);
-
     double dt = (current_time - last_time).toSec();
 
+    double v[2] = {0, 0};
+    rotate(LidarX, LidarY, thDiff, v);
+    x = v[0] + xDiff;
+    y = v[1] + yDiff;
+
+    th = Quotient_Remainder((navxAngle + navxDiff), 360);
+
     //since all odometry is 6DOF we'll need a quaternion created from yaw
-    odom_quat = tf::createQuaternionMsgFromYaw((PI/180) * (navxAngle + navxDiff));
+    odom_quat = tf::createQuaternionMsgFromYaw((PI/180) * th);
 
     imu_data.header.stamp = current_time;
     imu_data.header.frame_id = "imu_link";
     
     imu_data.orientation = odom_quat;
     imu_pub.publish(imu_data);
-
-    //since all odometry is 6DOF we'll need a quaternion created from yaw
-    //odom_quat = tf::createQuaternionMsgFromYaw(th);
 
     //first, we'll publish the transform over tf
     geometry_msgs::TransformStamped odom_trans;
@@ -114,7 +135,8 @@ int main(int argc, char** argv){
     odom.child_frame_id = "base_footprint";
     odom.twist.twist.linear.x = (x - last_x) / dt;
     odom.twist.twist.linear.y = (y - last_y) / dt;
-    odom.twist.twist.angular.z = ( th - last_th ) / dt;
+    double th_velocity = (PI/180) * AngleLogic(Quotient_Remainder( ( th - last_th ), 360 ), 360) / dt;
+    odom.twist.twist.angular.z = th_velocity;
 
     //publish the message
     odom_pub.publish(odom);
@@ -128,10 +150,41 @@ int main(int argc, char** argv){
   }
 }
 
-//Set a robot position (x[m/s], y[m/s] and theta[°/s])
+//Set a robot position (x[m], y[m] and theta[°])
 void setPosition( double set_x, double set_y, double set_th){
-  xDiff = set_x - LidarX;
-  yDiff = set_y - LidarY;
-  thDiff = ((PI/180) * set_th) - LidarTheta;
+
+  thDiff = ((PI/180) * (set_th + lidar_angle) ) - LidarTheta;
   navxDiff = (set_th - navxAngle);
+
+  double v[2] = {0, 0};
+  rotate(LidarX, LidarY, thDiff, v);
+  xDiff = set_x - v[0];
+  yDiff = set_y - v[1];
+
+}
+
+double Quotient_Remainder( double x, double y ){
+  double Quotient = floor( x / y );
+  double Remainder = x - (y * Quotient);
+
+  return Remainder;
+}
+
+double ToDegrees(double x){
+  return ( (x / M_PI) * 180);
+}
+
+double ToRadian(double x){
+  return ( (x * M_PI) / 180);
+}
+
+double AngleLogic( double x, double ref ){
+  if ( x > ref/2 ) { return (x - ref); }
+  else if ( x < (-1 * ref/2) ) { return (x + ref); }
+  else { return x; }
+}
+
+void rotate( double x, double y, double phi, double *v){
+  v[0] = (cos(phi) * x) + (sin(phi) * y * -1);
+  v[1] = (sin(phi) * x) + (cos(phi) * y);
 }

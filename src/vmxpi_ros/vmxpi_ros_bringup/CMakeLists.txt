@@ -100,11 +100,11 @@ add_library(ultrasonic_ros SHARED IMPORTED GLOBAL)
 set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libultrasonic_ros.so)
 
 add_library(encoder_ros SHARED IMPORTED GLOBAL)
-# set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libencoder_ros.so")
+# set_target_properties(encoder_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libencoder_ros.so")
 set_target_properties(encoder_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libencoder_ros.so)
 
 add_library(motor_ros SHARED IMPORTED GLOBAL)
-# set_target_properties(ultrasonic_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libmotor_ros.so")
+# set_target_properties(motor_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libmotor_ros.so")
 set_target_properties(motor_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libmotor_ros.so)
 
 add_library(iowd_ros SHARED IMPORTED GLOBAL)
@@ -119,8 +119,8 @@ add_library(digitalout_ros SHARED IMPORTED GLOBAL)
 # set_target_properties(digitalout_ros PROPERTIES IMPORTED_LOCATION "/home/pi/catkin_ws/devel/lib/libdigitalout_ros.so")
 set_target_properties(digitalout_ros PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/../../../devel/lib/libdigitalout_ros.so)
 
-add_executable(test_node src/test_node.cpp)
-target_link_libraries(test_node PRIVATE
+add_executable(robot_interface src/robot_interface.cpp)
+target_link_libraries(robot_interface PRIVATE
 	vmxpi_hal 
 	navx_ros_wrapper 
 	# titandriver_ros 
@@ -149,7 +149,7 @@ target_link_libraries(test_node PRIVATE
 #  ${PROJECT_SOURCE_DIR}/../../devel/lib/libdigitalout_ros.so
   
 ) 
-add_dependencies(test_node 
+add_dependencies(robot_interface 
   	navx_ros_wrapper 
 	# titandriver_ros 
 	# titandriver_ros_wrapper 

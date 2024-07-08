@@ -4,7 +4,7 @@
   <version>0.0.0</version>
   <description>The vmxpi_ros_bringup package</description>
 
-  <maintainer email="harrisontieu@studica.com">Harrison Tieu</maintainer>
+  <maintainer email="felipeferreira1310@hotmail.com">felipeferreira</maintainer>
 
   <license>MIT</license>
 
@@ -17,6 +17,8 @@
   <depend>vmxpi_ros_cobra</depend>
   <depend>vmxpi_ros_sharp</depend>
   <depend>vmxpi_ros_ultrasonic</depend>
+  <depend>vmxpi_ros_encoder</depend>
+  <depend>vmxpi_ros_motor</depend>
   <depend>vmxpi_ros_navx</depend>
   <depend>vmxpi_ros_servo</depend>
   <depend>vmxpi_ros_io</depend>

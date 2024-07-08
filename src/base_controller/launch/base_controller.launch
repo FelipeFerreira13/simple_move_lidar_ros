@@ -2,7 +2,7 @@
 <launch>
 
   <!-- The drive_bot node -->
-  <node name="base_controller" type="base_controller" pkg="base_controller" output="screen"></node>
+  <!-- <node name="base_controller" type="base_controller" pkg="base_controller" output="screen"></node> -->
 
    <!-- Move Base -->
   <node name="move_base" pkg="move_base" type="move_base" respawn="false" output="screen">

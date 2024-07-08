@@ -1,9 +1,15 @@
-// #include "TitanDriver_ros_wrapper.h"
+/************************************
+ * Author: Felipe Ferreira
+ * Release version: 1.0.0.0
+ * Release date: 27/06/2024
+ * 
+ * Modified by: Felipe Ferreira
+ * Last modification date: 08/07/2024
+ * New version: 1.0.0.1
+
+*************************************/
+
 #include "navX_ros_wrapper.h"
-// #include "Cobra_ros.h"
-// #include "Sharp_ros.h"
-// #include "Servo_ros.h"
-// #include "Ultrasonic_ros.h"
 #include "encoder_ros.h"
 #include "motor_ros.h"
 #include "IOwd_ros.h"
@@ -44,12 +50,10 @@ void cmd_vel_callback(const geometry_msgs::Twist::ConstPtr& cmd_vel){
     cmd_vel_th = cmd_vel->angular.z; }
 
 // Callbacks for Encoder count values
-void enc0Callback(const std_msgs::Int32::ConstPtr& msg){left_enc = msg->data;}
-void enc1Callback(const std_msgs::Int32::ConstPtr& msg){right_enc  = msg->data;}
-void enc2Callback(const std_msgs::Int32::ConstPtr& msg){back_enc  = msg->data;}
-void enc3Callback(const std_msgs::Int32::ConstPtr& msg){elevator_enc   = msg->data;}
-
-
+void enc0Callback(const std_msgs::Int32::ConstPtr& msg){ back_enc     = msg->data; }
+void enc1Callback(const std_msgs::Int32::ConstPtr& msg){ right_enc    = msg->data; }
+void enc2Callback(const std_msgs::Int32::ConstPtr& msg){ left_enc     = msg->data; }
+void enc3Callback(const std_msgs::Int32::ConstPtr& msg){ elevator_enc = msg->data; }
 
 class PID{
     public:
@@ -87,7 +91,7 @@ class PID{
             limMax = LimMax; 
         }
 
-        double calculate(double setPoint, double measurement, double tolerance)
+        double calculate(double setPoint, double measurement)
         {
             if (setPoint > limMax)    { setPoint = limMax; }
             else if (setPoint < limMin)   { setPoint = limMin; }
@@ -103,6 +107,10 @@ class PID{
             }
             else{
                 sumError = sumError + error;
+
+                double maxSum = 5;
+                if( sumError > maxSum ){ sumError = maxSum; }
+                else if( sumError < -maxSum ){ sumError = -maxSum; }
             }
 
             integrator = kI * sumError;
@@ -136,6 +144,9 @@ class DynamicReconfig {
     bool flag = true;
     double error, vx, vy, vth;
 
+    double previous_time;
+    int previous_enc_l, previous_enc_r, previous_enc_b;
+
 public:
     ros::ServiceClient enable_client, disable_client;
     ros::ServiceClient resetAngle, res_encoder_client;
@@ -148,8 +159,6 @@ public:
     ros::Publisher vx_local_pub, vy_local_pub, vth_local_pub, error_pub;
 
     DynamicReconfig(ros::NodeHandle *nh) {
-
-        ros::Subscriber cmd_vel_sub = nh->subscribe("/cmd_vel", 10, cmd_vel_callback);
 
         set_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/set_motor_pwm");
         set_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/set_motor_pwm");
@@ -184,9 +193,6 @@ public:
         vy   = ( ( (-2.0/3.0) * backVelocity ) + (    (1.0/3.0)    * rightVelocity) + (     (1.0/3.0)    * leftVelocity) );                // [m/s]
         vth  = ( ( ( 1.0/3.0) * backVelocity ) + (    (1.0/3.0)    * rightVelocity) + (     (1.0/3.0)    * leftVelocity) ) / frameRadius ; // [rad/s]
 
-        ROS_INFO( "vx: %f", vx);
-        ROS_INFO( "vy: %f", vy);
-        ROS_INFO( "vth: %f", vth);
     }
 
     void InverseKinematis(double desired_vx, double desired_vy, double desired_vth)
@@ -202,45 +208,23 @@ public:
         desired_right_speed = desired_right_speed / max;
         desired_left_speed  = desired_left_speed  / max;
         
-        ROS_INFO( "desired_back_speed: %f",   desired_back_speed);
-        ROS_INFO( "desired_right_speed: %f",  desired_right_speed);
-        ROS_INFO( "desired_left_speed: %f",   desired_left_speed);
     }
 
     void GetWheelsSpeed(){
-        // double current_time = ros::Time::now().toSec();
-        // double delta_time = double(current_time - previous_time) / 1000.0; // [s]
-        // double previous_time = current_time;
-
-        // double current_enc_l = left_enc;
-        // double delta_enc_l = current_enc_l - previous_enc_l;
-        // double previous_enc_l = current_enc_l;
-
-        // double current_enc_r = right_enc;
-        // double delta_enc_r = current_enc_r - previous_enc_r;
-        // double previous_enc_r = current_enc_r;
-
-        // double current_enc_b = back_enc;
-        // double delta_enc_b = current_enc_b - previous_enc_b;
-        // double previous_enc_b = current_enc_b;
 
         double current_time = ros::Time::now().toSec();
-        static double previous_time = current_time;
-        double delta_time = double(current_time - previous_time) / 1000.0; // [s]
+        double delta_time = double(current_time - previous_time);
         previous_time = current_time;
 
         double current_enc_l = left_enc;
-        static double previous_enc_l = current_enc_l;
         double delta_enc_l = current_enc_l - previous_enc_l;
         previous_enc_l = current_enc_l;
 
         double current_enc_r = right_enc;
-        static double previous_enc_r = current_enc_r;
         double delta_enc_r = current_enc_r - previous_enc_r;
         previous_enc_r = current_enc_r;
 
         double current_enc_b = back_enc;
-        static double previous_enc_b = current_enc_b;
         double delta_enc_b = current_enc_b - previous_enc_b;
         previous_enc_b = current_enc_b;
 
@@ -253,9 +237,6 @@ public:
         if ( isnan(rightVelocity) || isinf(rightVelocity) ){ rightVelocity = 0; }
         if ( isnan(backVelocity)  || isinf(backVelocity) ) { backVelocity  = 0; }
 
-        ROS_INFO( "leftVelocity: %f",   leftVelocity);
-        ROS_INFO( "rightVelocity: %f",  rightVelocity);
-        ROS_INFO( "backVelocity: %f",   backVelocity);
     }
 
     void PubVelocity()
@@ -314,17 +295,17 @@ public:
         
         DirectKinematics();
 
-        PID_x.setPID(0.4, 0.08, 0.0);
+        PID_x.setPID(0.85, 0.25, 0.0);
         PID_x.setPIDLimits(-0.300, 0.300);
-        double x_drive = PID_x.calculate(desired_vx, vx, 0.0);
+        double x_drive = PID_x.calculate(desired_vx, vx);
 
-        PID_y.setPID(0.4, 0.08, 0.0);
+        PID_y.setPID(0.85, 0.25, 0.0);
         PID_y.setPIDLimits(-0.300, 0.300);
-        double y_drive = PID_y.calculate(desired_vy, vy, 0.0);
+        double y_drive = PID_y.calculate(desired_vy, vy);
                     
-        PID_th.setPID(0.5, 0.085, 0.0);
+        PID_th.setPID(0.85, 0.25, 0.0);
         PID_th.setPIDLimits(-1.5, 1.5);
-        double angle_drive = PID_th.calculate(desired_vth, vth, 0.0);
+        double angle_drive = PID_th.calculate(desired_vth, vth);
 
         InverseKinematis(x_drive, y_drive, angle_drive);
                 
@@ -337,10 +318,10 @@ public:
         msg1.request.pwm = desired_left_speed;
         set_m0_pwm.call(msg1);
 
-        msg1.request.pwm = desired_right_speed;
+        msg1.request.pwm = desired_back_speed;
         set_m1_pwm.call(msg1);
 
-        msg1.request.pwm = desired_back_speed;
+        msg1.request.pwm = desired_right_speed;
         set_m2_pwm.call(msg1);
     }
 
@@ -348,7 +329,7 @@ public:
 
         reset();
 
-        ros::Rate loop_rate(10);
+        ros::Rate loop_rate(5);
 
         while (ros::ok()){
 
@@ -359,10 +340,6 @@ public:
             publish_motors();
             PubVelocity();
 
-            ROS_INFO("cmd_vel_x: %f", cmd_vel_x);
-            ROS_INFO("cmd_vel_y: %f", cmd_vel_y);
-            ROS_INFO("cmd_vel_th: %f", cmd_vel_th);
-            
             ros::spinOnce();
             loop_rate.sleep();
         }
@@ -377,23 +354,29 @@ int main(int argc, char **argv) {
     
     ROS_INFO_STREAM("Main thread: " << syscall(SYS_gettid));
 
-    ros::init(argc, argv, "Robot_Interface");
+    ros::init(argc, argv, "robot_interface");
+
+    ROS_INFO("robot_interface node is now started");
 
     ros::NodeHandle nh;
     VMXPi vmx(true, (uint8_t)50);
     VMXErrorCode vmxerr;
 
+    ROS_INFO("VMX is now started");
+
     ros::AsyncSpinner spinner(4);
     spinner.start();
 
-    EncoderRos encoder_0(&nh, &vmx, 0);     // Left
+    ros::Subscriber cmd_vel_sub = nh.subscribe("/cmd_vel", 10, cmd_vel_callback);
+
+    EncoderRos encoder_0(&nh, &vmx, 0);     // Back
     EncoderRos encoder_1(&nh, &vmx, 1);     // Right
-    EncoderRos encoder_2(&nh, &vmx, 2);     // Back
+    EncoderRos encoder_2(&nh, &vmx, 2);     // Left
     EncoderRos encoder_3(&nh, &vmx, 3);     // Elevator
 
     MotorRos motor_0(&nh, &vmx, 0, 21, 20);   // Left
-    MotorRos motor_1(&nh, &vmx, 1, 19, 18);   // Right
-    MotorRos motor_2(&nh, &vmx, 2, 17, 16);   // Back
+    MotorRos motor_1(&nh, &vmx, 1, 19, 18);   // Back
+    MotorRos motor_2(&nh, &vmx, 2, 17, 16);   // Right
     MotorRos motor_3(&nh, &vmx, 3, 15, 14);   // Elevator
 
     navXROSWrapper navx_local(&nh, &vmx);

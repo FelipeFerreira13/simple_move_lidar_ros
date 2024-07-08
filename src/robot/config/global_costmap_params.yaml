@@ -1,0 +1,13 @@
+global_costmap:
+   global_frame: odom
+   robot_base_frame: base_footprint
+   update_frequency: 2
+   publish_frequency: 0.5
+   width:  18.0
+   height: 18.0
+   resolution: 0.05
+   static_map: false
+   rolling_window: true
+   inflation_radius: 0.3 #The radius in meters to which the map inflates obstacle cost values.
+
+   outline_map: false

@@ -1,4 +1,14 @@
-// #include "TitanDriver_ros_wrapper.h"
+/************************************
+ * Author: Felipe Ferreira
+ * Release version: 1.0.0.0
+ * Release date: 27/06/2024
+ * 
+ * Modified by: Felipe Ferreira
+ * Last modification date: 
+ * New version:
+
+*************************************/
+
 #include "navX_ros_wrapper.h"
 #include "Cobra_ros.h"
 #include "Sharp_ros.h"
