@@ -15,6 +15,10 @@
     <node name="base_controller" pkg="base_controller" type="base_controller"  output="screen"/>
 
 
+    <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="scan_to_scan_filter_chain">
+        <rosparam command="load" file="$(find robot)/config/laser_median_filter.yaml" />
+    </node>
+
 
     <arg name="IS_TWISTSTAMPED" default="true" />
     <arg name="publish_covariance" default="false"/>
@@ -30,7 +34,7 @@
     <node pkg="laser_scan_matcher" type="laser_scan_matcher_node" name="laser_scan_matcher_node" output="screen">
 
         <param name="fixed_frame " value="base_footprint"/>
-        <param name="base_frame " value="base_footprint"/>
+        <param name="base_frame " value="base_link"/>
 
         <param name="publish_tf " value="false"/>
 
@@ -42,6 +46,6 @@
         <param name="kf_dist_angular " value="0.2"/>     What angle the fixed frame needs to move before updating the keyframe scan (in radians)
     </node> 
 
-    <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find robot)/rviz/rviz_config.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find robot)/rviz/rviz_viewer.rviz" />
 
 </launch>
