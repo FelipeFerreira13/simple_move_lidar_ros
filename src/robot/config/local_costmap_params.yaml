@@ -9,4 +9,4 @@ local_costmap:
    transform_tolerance: 0.5
    static_map: false
    rolling_window: true
-   inflation_radius: 0.06 #The radius in meters to which the map inflates obstacle cost values.0.5
+   inflation_radius: 0.25 #The radius in meters to which the map inflates obstacle cost values.0.5
