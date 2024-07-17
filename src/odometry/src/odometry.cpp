@@ -25,10 +25,14 @@ static double x = 0.0;
 static double y = 0.0;
 static double th = 0.0;
 
+static double vx = 0.0;
+static double vy = 0.0;
+static double vth = 0.0;
+
 //Sensor Measurement
-static double LidarX = 0;
-static double LidarY = 0;
-static double LidarTheta = 0;
+static double pose_x = 0;
+static double pose_y = 0;
+static double pose_th = 0;
 
 static double xDiff = 0;
 static double yDiff = 0;
@@ -37,7 +41,7 @@ static double thDiff = 0;
 static double navxAngle = 0;
 static double navxDiff = 0;
 
-static double lidar_angle = -90;
+static double lidar_angle = 0;
 
 void setPosition( double x, double y, double th);
 double Quotient_Remainder( double x, double y );
@@ -47,11 +51,15 @@ double AngleLogic( double x, double ref );
 void rotate( double x, double y, double phi, double *v);
 
 
-void poseCallback(const geometry_msgs::Pose2D::ConstPtr& pose){
-  LidarX = pose->x;
-  LidarY = pose->y;
-  LidarTheta = pose->theta;
+void poseCallback_lidar(const geometry_msgs::Pose2D::ConstPtr& pose){
+  pose_x = pose->x;
+  pose_y = pose->y;
+  pose_th = pose->theta;
 }
+
+void vx_Callback(const std_msgs::Float32::ConstPtr& msg){ vx = msg->data; }
+void vy_Callback(const std_msgs::Float32::ConstPtr& msg){ vy = msg->data; }
+void vth_Callback(const std_msgs::Float32::ConstPtr& msg){ vth = msg->data; }
 
 void angleCallback(const std_msgs::Float32::ConstPtr& msg){navxAngle = msg->data * -1;}
 
@@ -60,7 +68,12 @@ int main(int argc, char** argv){
 
   ros::NodeHandle n;
   
-  ros::Subscriber laser_pose = n.subscribe("pose2D", 1, poseCallback);
+  ros::Subscriber laser_pose = n.subscribe("pose2D", 1, poseCallback_lidar);
+
+  ros::Subscriber vx_sub  = n.subscribe("vx_local",  1, vx_Callback );
+  ros::Subscriber vy_sub  = n.subscribe("vy_local",  1, vy_Callback );
+  ros::Subscriber vth_sub = n.subscribe("vth_local", 1, vth_Callback);
+
   ros::Subscriber angle_sub  = n.subscribe("navx/angle", 1, angleCallback);
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 5);
@@ -80,7 +93,7 @@ int main(int argc, char** argv){
 
   ros::Duration(5).sleep();
 
-  setPosition(0.0, 0.0, 90.0); //Set initial Position
+  setPosition(0.0, 0.0, 0.0); //Set initial Position
 
   ros::Rate r(10);
   while(n.ok()){
@@ -90,12 +103,18 @@ int main(int argc, char** argv){
 
     double dt = (current_time - last_time).toSec();
 
-    double v[2] = {0, 0};
-    rotate(LidarX, LidarY, thDiff, v);
-    x = v[0] + xDiff;
-    y = v[1] + yDiff;
-
     th = Quotient_Remainder((navxAngle + navxDiff), 360);
+
+    double v[2] = {0, 0};
+    rotate(vx, vy, (th * (PI/180.0)), v);
+
+    x  = x  + ( v[0] * dt );
+    y  = y  + ( v[1] * dt );
+
+    // double v[2] = {0, 0};
+    // rotate(pose_x, pose_y, thDiff, v);
+    // x = v[0] + xDiff;
+    // y = v[1] + yDiff;
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
     odom_quat = tf::createQuaternionMsgFromYaw((PI/180) * th);
@@ -153,11 +172,11 @@ int main(int argc, char** argv){
 //Set a robot position (x[m], y[m] and theta[°])
 void setPosition( double set_x, double set_y, double set_th){
 
-  thDiff = ((PI/180) * (set_th + lidar_angle) ) - LidarTheta;
+  thDiff = ((PI/180) * (set_th + lidar_angle) ) - pose_th;
   navxDiff = (set_th - navxAngle);
 
   double v[2] = {0, 0};
-  rotate(LidarX, LidarY, thDiff, v);
+  rotate(pose_x, pose_y, thDiff, v);
   xDiff = set_x - v[0];
   yDiff = set_y - v[1];
 
