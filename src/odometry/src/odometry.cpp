@@ -17,9 +17,9 @@
 #include <geometry_msgs/Pose2D.h>
 #include <sensor_msgs/Imu.h>
 
-#include <iostream>
+#include "odometry/odometry.h"
 
-static double PI = 3.14159265;
+static const double PI = 3.14159265;
 
 static double x = 0.0;
 static double y = 0.0;
@@ -29,19 +29,10 @@ static double vx = 0.0;
 static double vy = 0.0;
 static double vth = 0.0;
 
-//Sensor Measurement
-static double pose_x = 0;
-static double pose_y = 0;
-static double pose_th = 0;
-
-static double xDiff = 0;
-static double yDiff = 0;
 static double thDiff = 0;
 
 static double navxAngle = 0;
 static double navxDiff = 0;
-
-static double lidar_angle = 0;
 
 void setPosition( double x, double y, double th);
 double Quotient_Remainder( double x, double y );
@@ -50,12 +41,7 @@ double ToRadian(double x);
 double AngleLogic( double x, double ref );
 void rotate( double x, double y, double phi, double *v);
 
-
-void poseCallback_lidar(const geometry_msgs::Pose2D::ConstPtr& pose){
-  pose_x = pose->x;
-  pose_y = pose->y;
-  pose_th = pose->theta;
-}
+bool reference( odometry::odometry::Request &req, odometry::odometry::Response &res );
 
 void vx_Callback(const std_msgs::Float32::ConstPtr& msg){ vx = msg->data; }
 void vy_Callback(const std_msgs::Float32::ConstPtr& msg){ vy = msg->data; }
@@ -68,8 +54,6 @@ int main(int argc, char** argv){
 
   ros::NodeHandle n;
   
-  ros::Subscriber laser_pose = n.subscribe("pose2D", 1, poseCallback_lidar);
-
   ros::Subscriber vx_sub  = n.subscribe("vx_local",  1, vx_Callback );
   ros::Subscriber vy_sub  = n.subscribe("vy_local",  1, vy_Callback );
   ros::Subscriber vth_sub = n.subscribe("vth_local", 1, vth_Callback);
@@ -78,6 +62,8 @@ int main(int argc, char** argv){
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 5);
   ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>("imu/data", 1);
+
+   ros::ServiceServer service = n.advertiseService("odometry/set_position", reference);
   
   tf::TransformBroadcaster odom_broadcaster;
   geometry_msgs::Quaternion odom_quat;
@@ -93,12 +79,12 @@ int main(int argc, char** argv){
 
   ros::Duration(5).sleep();
 
-  setPosition(0.0, 0.0, 0.0); //Set initial Position
+  setPosition(0.3, 0.3, 0.0); //Set initial Position
 
   ros::Rate r(10);
   while(n.ok()){
 
-    ros::spinOnce();               // check for incoming messages
+    ros::spinOnce(); // check for incoming messages
     current_time = ros::Time::now();
 
     double dt = (current_time - last_time).toSec();
@@ -110,11 +96,6 @@ int main(int argc, char** argv){
 
     x  = x  + ( v[0] * dt );
     y  = y  + ( v[1] * dt );
-
-    // double v[2] = {0, 0};
-    // rotate(pose_x, pose_y, thDiff, v);
-    // x = v[0] + xDiff;
-    // y = v[1] + yDiff;
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
     odom_quat = tf::createQuaternionMsgFromYaw((PI/180) * th);
@@ -169,16 +150,19 @@ int main(int argc, char** argv){
   }
 }
 
+bool reference( odometry::odometry::Request &req, odometry::odometry::Response &res ){
+  setPosition( req.x, req.y, req.th );
+
+  return true;
+}
+
 //Set a robot position (x[m], y[m] and theta[°])
 void setPosition( double set_x, double set_y, double set_th){
 
-  thDiff = ((PI/180) * (set_th + lidar_angle) ) - pose_th;
-  navxDiff = (set_th - navxAngle);
+  x = set_x;
+  y = set_y;
 
-  double v[2] = {0, 0};
-  rotate(pose_x, pose_y, thDiff, v);
-  xDiff = set_x - v[0];
-  yDiff = set_y - v[1];
+  navxDiff = (set_th - navxAngle);
 
 }
 

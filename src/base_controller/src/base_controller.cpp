@@ -14,19 +14,31 @@
 #include <actionlib/client/simple_action_client.h>
 
 #include <tf/transform_broadcaster.h>
+
+#include "base_controller/move_goal.h"
  
 // Define a client for to send goal requests to the move_base server through a SimpleActionClient
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
 geometry_msgs::Quaternion odom_quat;
-static double PI = 3.14159265;
+static const double PI = 3.14159265;
+
+bool move( base_controller::move_goal::Request &req, base_controller::move_goal::Response &res );
 
 int main(int argc, char** argv){
   // Initialize the simple_navigation_goals node
   ros::init(argc, argv, "base_controller");
 
-  //tell the action client that we want to spin a thread by default
- 
+  ros::NodeHandle n;
+
+  ros::ServiceServer service = n.advertiseService("base_controller/goal", move);
+
+  ros::spin();
+
+  return 0;
+}
+
+bool move( base_controller::move_goal::Request &req, base_controller::move_goal::Response &res ){
   MoveBaseClient ac("move_base", true);
 
   // Wait 5 sec for move_base action server to come up
@@ -43,9 +55,9 @@ int main(int argc, char** argv){
   goal.target_pose.header.stamp = ros::Time::now();
   
   // Define a position and orientation for the robot to reach
-  goal.target_pose.pose.position.x = 0.5;
-  goal.target_pose.pose.position.y = 0.0;
-  goal.target_pose.pose.orientation = SetTheta(0);
+  goal.target_pose.pose.position.x = req.x;
+  goal.target_pose.pose.position.y = req.y;
+  goal.target_pose.pose.orientation = SetTheta(req.th);
 
    // Send the goal position and orientation for the robot to reach
   ROS_INFO("Sending goal");
@@ -62,7 +74,6 @@ int main(int argc, char** argv){
     ROS_INFO("The base failed to reach first goal for some reason");
     return 0;
   }
-  ros::Duration(5.0).sleep();
 }
 
 geometry_msgs::Quaternion SetTheta(double theta){
