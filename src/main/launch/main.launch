@@ -1,19 +1,19 @@
 <launch>
 
-    <!-- Launch other relevant files-->
-    <include file="$(find robot)/launch/robot_description.launch"/>
- 
     <!-- Run Lidar -->
     <include file="$(find ydlidar_ros_driver)/launch/X2.launch"/>
 
     <!-- Run move_base -->
     <include file="$(find base_controller)/launch/base_controller.launch"/>
 
+    <!-- Launch Robot Description-->
+    <include file="$(find robot)/launch/robot_description.launch"/>
+
 	<node pkg="vmxpi_ros_bringup" name="robot_interface" type="robot_interface" output="screen"/>
     <node name="odometry" pkg="odometry" type="odometry" output="screen"/>
-    <node name="main" pkg="main" type="main" respawn="false"/>
     <node name="base_controller" pkg="base_controller" type="base_controller"  output="screen"/>
 
+    <node name="main" pkg="main" type="main" output="screen"/>
 
     <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="scan_to_scan_filter_chain">
         <rosparam command="load" file="$(find robot)/config/laser_median_filter.yaml" />

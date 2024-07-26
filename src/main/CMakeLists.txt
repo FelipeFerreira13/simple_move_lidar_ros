@@ -13,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   tf
-  vmxpi_ros_bringup
 )
 
 ## System dependencies are found with CMake's conventions
@@ -212,3 +211,6 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(main src/main.cpp)
 target_link_libraries(main ${catkin_LIBRARIES})
+
+add_executable(my_node src/new_node.cpp)
+target_link_libraries(my_node ${catkin_LIBRARIES})
