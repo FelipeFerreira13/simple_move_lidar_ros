@@ -17,7 +17,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <sensor_msgs/Imu.h>
 
-#include "odometry/odometry.h"
+#include "odometry/pose_odom.h"
 
 static const double PI = 3.14159265;
 
@@ -41,7 +41,7 @@ double ToRadian(double x);
 double AngleLogic( double x, double ref );
 void rotate( double x, double y, double phi, double *v);
 
-bool reference( odometry::odometry::Request &req, odometry::odometry::Response &res );
+bool reference( odometry::pose_odom::Request &req, odometry::pose_odom::Response &res );
 
 void vx_Callback(const std_msgs::Float32::ConstPtr& msg){ vx = msg->data; }
 void vy_Callback(const std_msgs::Float32::ConstPtr& msg){ vy = msg->data; }
@@ -51,6 +51,8 @@ void angleCallback(const std_msgs::Float32::ConstPtr& msg){navxAngle = msg->data
 
 int main(int argc, char** argv){
   ros::init(argc, argv, "odometry");
+
+  ROS_INFO("odometry node is now started");
 
   ros::NodeHandle n;
   
@@ -79,7 +81,7 @@ int main(int argc, char** argv){
 
   ros::Duration(5).sleep();
 
-  setPosition(0.3, 0.3, 0.0); //Set initial Position
+  setPosition(0.0, 0.0, 0.0); //Set initial Position
 
   ros::Rate r(10);
   while(n.ok()){
@@ -150,7 +152,10 @@ int main(int argc, char** argv){
   }
 }
 
-bool reference( odometry::odometry::Request &req, odometry::odometry::Response &res ){
+bool reference( odometry::pose_odom::Request &req, odometry::pose_odom::Response &res ){
+
+  ROS_INFO("Robot Position: %f, %f, %f", req.x, req.y, req.th);
+
   setPosition( req.x, req.y, req.th );
 
   return true;
