@@ -92,17 +92,17 @@ void UltrasonicROS::Run_t() {
         msg.data = diff;
         ultrasonic_raw_pub.publish(msg);
         
-        ROS_INFO_STREAM("Raw Distance: " << roundf(msg.data) << "ms" << "\n");
+        // ROS_INFO_STREAM("Raw Distance: " << roundf(msg.data) << "ms" << "\n");
         
         msg.data = GetDistanceCM(diff);
         ultrasonic_cm_pub.publish(msg);
             
-        ROS_INFO_STREAM("Distance in Centimeters: " << roundf(msg.data) << "cm" << "\n");
+        // ROS_INFO_STREAM("Distance in Centimeters: " << roundf(msg.data) << "cm" << "\n");
         
         msg.data = GetDistanceIN(diff);
         ultrasonic_in_pub.publish(msg);
         
-        ROS_INFO_STREAM("Distance in Inches: " << roundf(msg.data) << "in" << "\n");
+        // ROS_INFO_STREAM("Distance in Inches: " << roundf(msg.data) << "in" << "\n");
         r.sleep();
     }
 	

@@ -81,7 +81,7 @@ double SharpROS::GetRawVoltage() {
 }
 
 void SharpROS::Run_t() {
-  ros::Rate r(50);
+  ros::Rate r(25);
   ROS_INFO_STREAM("Sharp pub thread: " << syscall(SYS_gettid));
   while (ros::ok()) {
         std_msgs::Float32 msg;
