@@ -20,7 +20,7 @@ DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channe
 	di_cm_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_cm", 1);
 	di_in_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_inch", 1);
 	
-	runth = std::thread(&DigitalInputROS::Run_t, this);
+	// runth = std::thread(&DigitalInputROS::Run_t, this);
 }
 
 DigitalInputROS::~DigitalInputROS() {
