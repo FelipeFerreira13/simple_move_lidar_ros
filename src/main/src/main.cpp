@@ -26,7 +26,6 @@ int main(int argc, char **argv)
     ros::ServiceClient move_goal    = nh.serviceClient<base_controller::move_goal>("base_controller/goal");
     ros::ServiceClient set_position = nh.serviceClient<odometry::pose_odom>("odometry/set_position");
 
-
     ros::Duration(5).sleep();
 
     odometry::pose_odom pose;
