@@ -211,6 +211,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(main src/main.cpp)
 target_link_libraries(main ${catkin_LIBRARIES})
+<<<<<<< HEAD
 
 add_executable(my_node src/newnode.cpp)
 target_link_libraries(my_node ${catkin_LIBRARIES})
@@ -220,3 +221,5 @@ target_link_libraries(sub_node ${catkin_LIBRARIES})
 
 add_executable(pub_node src/publisher.cpp)
 target_link_libraries(pub_node ${catkin_LIBRARIES})
+=======
+>>>>>>> 5680f5ade4eed8f2829a69ea6c91370c0f6d7d3e
