@@ -124,7 +124,7 @@ class PID{
             differentiator = -(2.0 * kD * (measurement - prevMeasurement) + (2.0 * tau - T) * differentiator) / (2.0 * tau + T);
 
             //Compute
-            output = proportional + integrator + differentiator;
+            output = proportional + integrator;
 
             //Clamp
             if (output > limMax)    { output = limMax; }
@@ -266,7 +266,17 @@ public:
     }
     
     void stop_motors()
-    {
+    {      
+        vmxpi_ros_motor::pwm msg1;
+        msg1.request.pwm = 0.0;
+
+        stop_m0_pwm.call(msg1);
+        stop_m1_pwm.call(msg1);
+        stop_m2_pwm.call(msg1);
+        stop_m3_pwm.call(msg1);
+
+        ros::Duration(1).sleep();
+
         std_msgs::Float32 msg;
         msg.data = 0.0;
 
@@ -275,15 +285,6 @@ public:
         set_m2_pwm.publish(msg);
         set_m3_pwm.publish(msg);
 
-        ros::Duration(1).sleep();
-
-        vmxpi_ros_motor::pwm msg1;
-        msg1.request.pwm = 0.0;
-
-        stop_m0_pwm.call(msg1);
-        stop_m1_pwm.call(msg1);
-        stop_m2_pwm.call(msg1);
-        stop_m3_pwm.call(msg1);
     }
 
     //Set the wheels speed according to linear (m/s) and angular (RAD/s) velocities
@@ -317,16 +318,20 @@ public:
 
     void publish_motors()
     {
-        std_msgs::Float32 msg;
+        if ( desired_left_speed == 0 && desired_back_speed == 0 && desired_right_speed == 0 ){
+            stop_motors();
+        }else{
+            std_msgs::Float32 msg;
 
-        msg.data = desired_left_speed;
-        set_m0_pwm.publish(msg);
+            msg.data = desired_left_speed;
+            set_m0_pwm.publish(msg);
 
-        msg.data = desired_back_speed;
-        set_m1_pwm.publish(msg);
+            msg.data = desired_back_speed;
+            set_m1_pwm.publish(msg);
 
-        msg.data = desired_right_speed;
-        set_m2_pwm.publish(msg);
+            msg.data = desired_right_speed;
+            set_m2_pwm.publish(msg);
+        }
     }
 
     void callback(vmxpi_ros_bringup::MotorSpeedConfig &config, uint32_t level) {
@@ -375,6 +380,8 @@ int main(int argc, char **argv) {
 
     SharpROS sensor_left       ( &nh, &vmx, 22 );
     SharpROS sensor_right      ( &nh, &vmx, 23 );
+    SharpROS sensor_front_left       ( &nh, &vmx, 24 );
+    SharpROS sensor_front_right      ( &nh, &vmx, 25 );
 
     DigitalInputROS limit_switch_high( &nh, &vmx, 8 );
     DigitalInputROS limit_switch_low ( &nh, &vmx, 9 );
