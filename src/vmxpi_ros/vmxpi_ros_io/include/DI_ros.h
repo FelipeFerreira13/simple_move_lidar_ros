@@ -6,6 +6,8 @@
 #include <vmxpi_ros/FloatRes.h>
 
 #include <std_msgs/Float32.h>
+#include <std_msgs/Bool.h>
+
 
 
 class DigitalInputROS : public Utils {
@@ -16,7 +18,7 @@ class DigitalInputROS : public Utils {
 		VMXResourceHandle digitalin_res_handle;
 
 
-		ros::Publisher di_cm_pub, di_in_pub;
+		ros::Publisher di_cm_pub, di_in_pub, di_pub;
 
 		std::thread runth;
 
