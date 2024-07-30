@@ -187,8 +187,6 @@ public:
         resetAngle = nh->serviceClient<std_srvs::Empty>("reset_navx");
     }
 
-
-
     void DirectKinematics()
     {
         //Forward Kinematics
