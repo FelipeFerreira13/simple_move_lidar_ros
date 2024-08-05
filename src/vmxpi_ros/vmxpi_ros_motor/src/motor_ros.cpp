@@ -38,7 +38,7 @@ MotorRos::MotorRos(ros::NodeHandle *nh, VMXPi *vmx, int motor_, int INA_, int IN
         }
 
         std::string topic_name = "motor/" + std::to_string(motor_);
-        motor_pwm  = nh->advertiseService(topic_name + "/set_motor_pwm", &MotorRos::SetMotorPWM, this);
+        motor_pwm  = nh->subscribe(topic_name + "/set_motor_pwm", 1, &MotorRos::SetMotorPWM, this);
         stop_motor = nh->advertiseService(topic_name + "/stop_motor", &MotorRos::StopMotor, this);
 
     }else{
@@ -64,32 +64,32 @@ MotorRos::~MotorRos(){
 }
 
 
-bool MotorRos::SetMotorPWM( vmxpi_ros_motor::pwm::Request &req, vmxpi_ros_motor::pwm::Response &res ){
+void MotorRos::SetMotorPWM( const std_msgs::Float32::ConstPtr& msg ){
     // printf("duty_cycle_ set to %f \n", pwm);
 
-    float pwm = req.pwm;
+    float pwm = msg->data;
 
     double duty_cycle_ = ( abs(pwm) * 255.0 );
 
     int ina = 0, inb = 0;
 
-    if ( pwm > 0 )      { ina = duty_cycle_; inb = 0;          }
-    else if ( pwm < 0 ) { ina = 0;          inb = duty_cycle_; }
-    else if ( pwm == 0 ){ ina = 255;        inb = 255;        }
+    if      ( pwm > 0 ) { ina = duty_cycle_; inb = 0;           }
+    else if ( pwm < 0 ) { ina = 0;           inb = duty_cycle_; }
+    else if ( pwm == 0 ){ ina = 255;         inb = 255;         }
 
     if (!io->PWMGenerator_SetDutyCycle(pwmgen_res_handle_a, res_port_index_a, ina, &vmxerr)) {
         ROS_WARN("Failed to set DutyCycle for PWMGenerator Resource %d, Port %d.\n", EXTRACT_VMX_RESOURCE_INDEX(pwmgen_res_handle_a), res_port_index_a);
         DisplayVMXError(vmxerr);
-        return false;
+        // return false;
     }
         if (!io->PWMGenerator_SetDutyCycle(pwmgen_res_handle_b, res_port_index_b, inb, &vmxerr)) {
         ROS_WARN("Failed to set DutyCycle for PWMGenerator Resource %d, Port %d.\n", EXTRACT_VMX_RESOURCE_INDEX(pwmgen_res_handle_b), res_port_index_b);
         DisplayVMXError(vmxerr);
-        return false;
+        // return false;
     }
 
     duty_cycle = duty_cycle_;
-    return true;
+    // return true;
 }
 
 bool MotorRos::StopMotor( vmxpi_ros_motor::pwm::Request &req, vmxpi_ros_motor::pwm::Response &res ){

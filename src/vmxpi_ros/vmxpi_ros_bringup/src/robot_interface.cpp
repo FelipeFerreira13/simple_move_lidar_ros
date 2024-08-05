@@ -12,10 +12,13 @@
 #include "navX_ros_wrapper.h"
 #include "encoder_ros.h"
 #include "motor_ros.h"
+#include "Sharp_ros.h"
+#include "Servo_ros.h"
 #include "IOwd_ros.h"
 #include "DI_ros.h"
 #include "DO_ros.h"
 #include <unistd.h>
+
 
 #include <dynamic_reconfigure/server.h>
 #include <vmxpi_ros_bringup/MotorSpeedConfig.h>
@@ -121,7 +124,7 @@ class PID{
             differentiator = -(2.0 * kD * (measurement - prevMeasurement) + (2.0 * tau - T) * differentiator) / (2.0 * tau + T);
 
             //Compute
-            output = proportional + integrator + differentiator;
+            output = proportional + integrator;
 
             //Clamp
             if (output > limMax)    { output = limMax; }
@@ -151,7 +154,7 @@ public:
     ros::ServiceClient enable_client, disable_client;
     ros::ServiceClient resetAngle, res_encoder_client;
 
-    ros::ServiceClient set_m0_pwm, set_m1_pwm, set_m2_pwm, set_m3_pwm;
+    ros::Publisher set_m0_pwm, set_m1_pwm, set_m2_pwm, set_m3_pwm;
     ros::ServiceClient stop_m0_pwm, stop_m1_pwm, stop_m2_pwm, stop_m3_pwm;
 
     ros::Subscriber enc0_pub, enc1_pub, enc2_pub, enc3_pub;
@@ -160,10 +163,10 @@ public:
 
     DynamicReconfig(ros::NodeHandle *nh) {
 
-        set_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/set_motor_pwm");
-        set_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/set_motor_pwm");
-        set_m2_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/2/set_motor_pwm");
-        set_m3_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/3/set_motor_pwm");
+        set_m0_pwm = nh->advertise<std_msgs::Float32>("motor/0/set_motor_pwm", 1);
+        set_m1_pwm = nh->advertise<std_msgs::Float32>("motor/1/set_motor_pwm", 1);
+        set_m2_pwm = nh->advertise<std_msgs::Float32>("motor/2/set_motor_pwm", 1);
+        set_m3_pwm = nh->advertise<std_msgs::Float32>("motor/3/set_motor_pwm", 1);
 
         stop_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/stop_motor");
         stop_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/stop_motor");
@@ -183,8 +186,6 @@ public:
 
         resetAngle = nh->serviceClient<std_srvs::Empty>("reset_navx");
     }
-
-
 
     void DirectKinematics()
     {
@@ -265,21 +266,25 @@ public:
     }
     
     void stop_motors()
-    {
+    {      
         vmxpi_ros_motor::pwm msg1;
         msg1.request.pwm = 0.0;
-
-        set_m0_pwm.call(msg1);
-        set_m1_pwm.call(msg1);
-        set_m2_pwm.call(msg1);
-        set_m3_pwm.call(msg1);
-
-        ros::Duration(1).sleep();
 
         stop_m0_pwm.call(msg1);
         stop_m1_pwm.call(msg1);
         stop_m2_pwm.call(msg1);
         stop_m3_pwm.call(msg1);
+
+        ros::Duration(1).sleep();
+
+        std_msgs::Float32 msg;
+        msg.data = 0.0;
+
+        set_m0_pwm.publish(msg);
+        set_m1_pwm.publish(msg);
+        set_m2_pwm.publish(msg);
+        set_m3_pwm.publish(msg);
+
     }
 
     //Set the wheels speed according to linear (m/s) and angular (RAD/s) velocities
@@ -313,16 +318,20 @@ public:
 
     void publish_motors()
     {
-        vmxpi_ros_motor::pwm msg1;
+        if ( desired_left_speed == 0 && desired_back_speed == 0 && desired_right_speed == 0 ){
+            stop_motors();
+        }else{
+            std_msgs::Float32 msg;
 
-        msg1.request.pwm = desired_left_speed;
-        set_m0_pwm.call(msg1);
+            msg.data = desired_left_speed;
+            set_m0_pwm.publish(msg);
 
-        msg1.request.pwm = desired_back_speed;
-        set_m1_pwm.call(msg1);
+            msg.data = desired_back_speed;
+            set_m1_pwm.publish(msg);
 
-        msg1.request.pwm = desired_right_speed;
-        set_m2_pwm.call(msg1);
+            msg.data = desired_right_speed;
+            set_m2_pwm.publish(msg);
+        }
     }
 
     void callback(vmxpi_ros_bringup::MotorSpeedConfig &config, uint32_t level) {
@@ -369,6 +378,16 @@ int main(int argc, char **argv) {
 
     ros::Subscriber cmd_vel_sub = nh.subscribe("/cmd_vel", 10, cmd_vel_callback);
 
+    SharpROS sensor_left       ( &nh, &vmx, 22 );
+    SharpROS sensor_right      ( &nh, &vmx, 23 );
+    SharpROS sensor_front_left       ( &nh, &vmx, 24 );
+    SharpROS sensor_front_right      ( &nh, &vmx, 25 );
+
+    DigitalInputROS limit_switch_high( &nh, &vmx, 8 );
+    DigitalInputROS limit_switch_low ( &nh, &vmx, 9 );
+    DigitalInputROS stop_button      ( &nh, &vmx, 10 );
+    DigitalInputROS start_button     ( &nh, &vmx, 11 );
+
     EncoderRos encoder_0(&nh, &vmx, 0);     // Back
     EncoderRos encoder_1(&nh, &vmx, 1);     // Right
     EncoderRos encoder_2(&nh, &vmx, 2);     // Left
@@ -378,6 +397,8 @@ int main(int argc, char **argv) {
     MotorRos motor_1(&nh, &vmx, 1, 19, 18);   // Back
     MotorRos motor_2(&nh, &vmx, 2, 17, 16);   // Right
     MotorRos motor_3(&nh, &vmx, 3, 15, 14);   // Elevator
+
+    ServoROS servo(&nh, &vmx, 12);
 
     navXROSWrapper navx_local(&nh, &vmx);
     ROS_INFO("navX_local driver is now started");

@@ -53,6 +53,8 @@ double ServoROS::GetAngle() const { return angle_; }
 
 bool ServoROS::SetAngle(vmxpi_ros::Float::Request &req, vmxpi_ros::Float::Response &res) { 
   VMXErrorCode vmxerr;
+
+  ROS_INFO(" DutyCycle: %f\n", mapAngle(req.data));
   
   // PWM uses duty cycle, for more info on this: https://www.allaboutcircuits.com/technical-articles/introduction-to-microcontroller-timers-pwm-timers/
   if (!io->PWMGenerator_SetDutyCycle(pwmgen_res_handle, res_port_index, mapAngle(req.data), &vmxerr)) {
@@ -69,7 +71,7 @@ double ServoROS::GetMinAngle() const { return minangle; }
 double ServoROS::GetMaxAngle() const { return maxangle; }
 
 void ServoROS::Run_t() {
-  ros::Rate r(50);
+  ros::Rate r(10);
   ROS_INFO_STREAM("Servo pub thread: " << syscall(SYS_gettid));
   while(ros::ok()) {
     std_msgs::Float32 msg;

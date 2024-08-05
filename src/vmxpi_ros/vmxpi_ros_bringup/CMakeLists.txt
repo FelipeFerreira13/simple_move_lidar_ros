@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   dynamic_reconfigure
+  message_generation
   vmxpi_ros
 #   vmxpi_ros_titan
   vmxpi_ros_cobra
@@ -28,6 +29,20 @@ find_package(catkin REQUIRED COMPONENTS
 
 generate_dynamic_reconfigure_options(
   cfg/motor_speed.cfg
+)
+
+
+## Generate services in the 'srv' folder
+add_service_files(
+  FILES
+  set_height.srv
+  reset.srv
+)
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  std_msgs
 )
 
 ###################################
@@ -195,4 +210,20 @@ add_dependencies(main_node
   	iowd_ros
 	digitalin_ros
 	digitalout_ros
+  	${PROJECT_NAME}_gencfg)
+
+
+add_executable(oms_node src/object_management.cpp)
+target_link_libraries(oms_node PRIVATE
+	vmxpi_hal 
+	encoder_ros
+	motor_ros
+  	iowd_ros
+	${catkin_LIBRARIES}
+)
+add_dependencies(oms_node 
+	vmxpi_hal 
+	encoder_ros
+	motor_ros
+	iowd_ros
   	${PROJECT_NAME}_gencfg)

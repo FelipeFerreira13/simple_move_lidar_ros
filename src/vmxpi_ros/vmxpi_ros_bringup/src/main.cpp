@@ -19,6 +19,7 @@
 #include "DO_ros.h"
 #include <unistd.h>
 
+
 int main(int argc, char **argv)
 {
    system("/usr/local/frc/bin/frcKillRobot.sh"); //Terminal call to kill the robot manager used for WPILib before running the executable.
@@ -30,20 +31,17 @@ int main(int argc, char **argv)
    ros::NodeHandle nh; //Internal reference to the ROS node that the program will use to interact with the ROS system
    VMXPi vmx(true, (uint8_t)50); //Realtime bool and the update rate to use for the VMXPi AHRS/IMU interface, default is 50hz within a valid range of 4-200Hz
     
-   CobraROS cobra(&nh, &vmx);
+   DigitalInputROS digital_in(&nh, &vmx, 8); // initialize an object of the class DigitalInputROS and set the channel of this object as 10
 
 
-   while( ros::ok() ){
-      float voltage = cobra.GetVoltage(0);
-      int value = cobra.GetRawValue(1);
+   while( ros::ok() ){  // runs the loop while ROS is running
+      float state = digital_in.Get();  // get the current state of the digital input
 
-      printf("\nVoltage: %f", voltage);
-      printf("\nADC Value: %d", value); 
+      ROS_INFO("Button State: %f", state);
 
       vmx.time.DelayMilliseconds( 200 );
    }
    
-   ROS_INFO("ROS SHUTDOWN");
-   ros::waitForShutdown();
+   ros::spin();
    return 0;
 }

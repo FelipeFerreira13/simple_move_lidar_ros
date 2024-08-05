@@ -17,10 +17,12 @@ DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channe
 
 	
 	std::string topic_name = "channel/" + std::to_string(channel_index) + "/digital_in/";
-	di_cm_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_cm", 1);
-	di_in_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_inch", 1);
+	// di_cm_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_cm", 1);
+	// di_in_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_inch", 1);
+	di_pub = nh->advertise<std_msgs::Bool>(topic_name + "state", 1);
+
 	
-	runth = std::thread(&DigitalInputROS::Run_t, this);
+	// runth = std::thread(&DigitalInputROS::Run_t, this);
 }
 
 DigitalInputROS::~DigitalInputROS() {
@@ -86,4 +88,6 @@ void DigitalInputROS::Run_t() {
 	msg.data = GetInches(diff);
 	di_in_pub.publish(msg);
 
+	msg.data = diff;
+	di_pub.publish(msg);
 }

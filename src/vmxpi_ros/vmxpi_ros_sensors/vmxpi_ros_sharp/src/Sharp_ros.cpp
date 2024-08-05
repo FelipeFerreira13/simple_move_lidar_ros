@@ -10,9 +10,9 @@ SharpROS::SharpROS(ros::NodeHandle *nh, VMXPi *vmx) :
 	VMXErrorCode vmxerr;
 	AccumulatorConfig accum_config;
 	accum_config.SetNumAverageBits(9);
-	accum_config.SetEnableAccumulationCounter(true);
-	accum_config.SetAccumulationCounterCenter(0);
-	accum_config.SetAccumulationCounterDeadband(4); // configure the voltage accumulator before activating 
+	// accum_config.SetEnableAccumulationCounter(true);
+	// accum_config.SetAccumulationCounterCenter(0);
+	// accum_config.SetAccumulationCounterDeadband(4); // configure the voltage accumulator before activating 
 	
 	if (!io->ActivateSinglechannelResource(VMXChannelInfo(analog_in_chan_index, VMXChannelCapability::AccumulatorInput),
 		&accum_config, accumulator_res_handle, &vmxerr)) {
@@ -41,13 +41,13 @@ SharpROS::SharpROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel) :
 	VMXErrorCode vmxerr;
 	AccumulatorConfig accum_config;
 	accum_config.SetNumAverageBits(9);
-	accum_config.SetEnableAccumulationCounter(true);
-	accum_config.SetAccumulationCounterCenter(0);
-	accum_config.SetAccumulationCounterDeadband(4); // configure the voltage accumulator before activating
+	// accum_config.SetEnableAccumulationCounter(true);
+	// accum_config.SetAccumulationCounterCenter(0);
+	// accum_config.SetAccumulationCounterDeadband(4); // configure the voltage accumulator before activating
 	
 	if (!io->ActivateSinglechannelResource(VMXChannelInfo(analog_in_chan_index, VMXChannelCapability::AccumulatorInput),
 		&accum_config, accumulator_res_handle, &vmxerr)) {
-    DisplayVMXError(vmxerr);
+    	DisplayVMXError(vmxerr);
   	} else {
     ROS_INFO("Analog Input Channel %d activated on Resource type %d, index %d", analog_in_chan_index,
 		EXTRACT_VMX_RESOURCE_TYPE(accumulator_res_handle),
@@ -81,7 +81,7 @@ double SharpROS::GetRawVoltage() {
 }
 
 void SharpROS::Run_t() {
-  ros::Rate r(50);
+  ros::Rate r(25);
   ROS_INFO_STREAM("Sharp pub thread: " << syscall(SYS_gettid));
   while (ros::ok()) {
         std_msgs::Float32 msg;
