@@ -22,7 +22,7 @@ DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channe
 	di_pub = nh->advertise<std_msgs::Bool>(topic_name + "state", 1);
 
 	
-	// runth = std::thread(&DigitalInputROS::Run_t, this);
+	runth = std::thread(&DigitalInputROS::Run_t, this);
 }
 
 DigitalInputROS::~DigitalInputROS() {
@@ -51,43 +51,46 @@ double DigitalInputROS::GetInches(uint32_t diff) {
 	return (double)diff / 148;
 }
 
-uint32_t DigitalInputROS::GetRawValue() {
+bool DigitalInputROS::GetRawValue() {
 	VMXErrorCode vmxerr;
 	bool state;
 	uint32_t diff, begin = 0, end = 0;
 
-	while (io->DIO_Get(digitalin_res_handle, state, &vmxerr)) {
-		if (state) {
-			begin = time->GetCurrentMicroseconds();
-			//ROS_INFO("begin: %" PRIu64"\n", begin);
-			break;
-		}
-		//ROS_INFO("begin state: %s \n", state ? "HIGH" : "LOW");
-	}
+	// while (io->DIO_Get(digitalin_res_handle, state, &vmxerr)) {
+	// 	if (state) {
+	// 		begin = time->GetCurrentMicroseconds();
+	// 		//ROS_INFO("begin: %" PRIu64"\n", begin);
+	// 		break;
+	// 	}
+	// 	//ROS_INFO("begin state: %s \n", state ? "HIGH" : "LOW");
+	// }
 		
-	while (io->DIO_Get(digitalin_res_handle, state, &vmxerr)) { 
-		if (!state) {
-			end = time->GetCurrentMicroseconds();
-			//ROS_INFO("end: %" PRIu64"\n", end);
-			break;
-		}
-		//ROS_INFO("end state: %s \n", state ? "HIGH" : "LOW");
-	}
+	// while (io->DIO_Get(digitalin_res_handle, state, &vmxerr)) { 
+	// 	if (!state) {
+	// 		end = time->GetCurrentMicroseconds();
+	// 		//ROS_INFO("end: %" PRIu64"\n", end);
+	// 		break;
+	// 	}
+	// 	//ROS_INFO("end state: %s \n", state ? "HIGH" : "LOW");
+	// }
 	
 	diff = end - begin;
-	return diff;
+
+	io->DIO_Get(digitalin_res_handle, state, &vmxerr);
+
+	return state;
 }
 
 void DigitalInputROS::Run_t() {
-	uint32_t diff = this->GetRawValue();
-	std_msgs::Float32 msg;
 
-	msg.data = GetCentimeters(diff);
-	di_cm_pub.publish(msg);
+	ros::Rate r(5);
+  	ROS_INFO_STREAM("Digital Input pub thread: " << syscall(SYS_gettid));
 
-	msg.data = GetInches(diff);
-	di_in_pub.publish(msg);
+  	while (ros::ok()) {
+		bool diff = this->GetRawValue();
+		std_msgs::Bool msg;
 
-	msg.data = diff;
-	di_pub.publish(msg);
+		msg.data = diff;
+		di_pub.publish(msg);
+	}
 }

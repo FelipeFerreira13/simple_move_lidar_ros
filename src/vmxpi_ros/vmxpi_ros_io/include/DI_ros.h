@@ -8,7 +8,7 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/Bool.h>
 
-
+#include <sys/syscall.h>
 
 class DigitalInputROS : public Utils {
 	private:
@@ -22,7 +22,7 @@ class DigitalInputROS : public Utils {
 
 		std::thread runth;
 
-		uint32_t GetRawValue();
+		bool GetRawValue();
 	public:
 		DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel);
 		
