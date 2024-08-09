@@ -1,12 +1,16 @@
 local_costmap:
-   global_frame: odom 
-   robot_base_frame: base_footprint
-   update_frequency: 2
-   publish_frequency: 2
-   width:  18
-   height: 18
-   resolution: 0.05
-   transform_tolerance: 0.5
-   static_map: false
-   rolling_window: true
-   inflation_radius: 0.25 #The radius in meters to which the map inflates obstacle cost values.0.5
+
+  #Set the global and robot frames for the costmap
+  global_frame: odom
+  robot_base_frame: base_footprint
+
+  #Set the update and publish frequency of the costmap
+  update_frequency: 2.0
+  publish_frequency: 2.0
+
+  #Window centered at the robot
+  static_map: false
+  rolling_window: true
+  width: 6.0
+  height: 6.0
+  resolution: 0.05
