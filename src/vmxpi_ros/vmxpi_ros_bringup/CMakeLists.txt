@@ -36,6 +36,7 @@ generate_dynamic_reconfigure_options(
 add_service_files(
   FILES
   set_height.srv
+  set_gripper.srv
   reset.srv
 )
 

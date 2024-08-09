@@ -17,6 +17,7 @@
 #include <std_msgs/Bool.h>
 
 #include "vmxpi_ros_bringup/set_height.h"
+#include "vmxpi_ros_bringup/set_gripper.h"
 #include "vmxpi_ros_bringup/reset.h"
 
 
@@ -50,6 +51,7 @@ class simpleControl{
 };
 
 bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup::set_height::Response &res );
+bool set_gripper( vmxpi_ros_bringup::set_gripper::Request &req, vmxpi_ros_bringup::set_gripper::Response &res );
 bool oms_reset( vmxpi_ros_bringup::reset::Request &req, vmxpi_ros_bringup::reset::Response &res );
 
 void encCallback(const std_msgs::Int32::ConstPtr& msg){ elevator_enc = msg->data; }
@@ -62,6 +64,7 @@ void stop_Callback (const std_msgs::Bool::ConstPtr& msg){ stop_button  = msg->da
 void elevatorMotor( double pwm );
 
 ros::Publisher set_m_pwm;
+ros::ServiceClient setAngle;
 
 int main(int argc, char **argv)
 {
@@ -70,8 +73,11 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh; //Internal reference to the ROS node that the program will use to interact with the ROS system
 
-    ros::ServiceServer service_driver = nh.advertiseService("oms/set_height", oms_driver);
-    ros::ServiceServer service_reset  = nh.advertiseService("oms/reset",       oms_reset);
+    ros::ServiceServer service_driver  = nh.advertiseService("oms/set_height",   oms_driver);
+    ros::ServiceServer service_reset   = nh.advertiseService("oms/reset",         oms_reset);
+    ros::ServiceServer service_gripper = nh.advertiseService("oms/set_gripper", set_gripper);
+
+    setAngle = nh.serviceClient<vmxpi_ros::Float>("channel/12/servo/set_angle");
 
     ros::Subscriber enc_sub = nh.subscribe("channel/3/encoder/count", 1, encCallback);
 
@@ -89,8 +95,8 @@ int main(int argc, char **argv)
 
 bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup::set_height::Response &res ){
 
-    int current_time = ros::Time::now().toSec();;
-    int previous_time = ros::Time::now().toSec();;
+    double current_time = ros::Time::now().toSec();;
+    double previous_time = ros::Time::now().toSec();;
 
     int current_enc = elevator_enc;
     int previous_enc = elevator_enc;
@@ -107,12 +113,11 @@ bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup:
         ros::Rate loop_rate(5);
         do{
 
-            if( limit_high_state ){ height = low_height; }
-            if( limit_low_state  ){ height = high_height; }
-
+            if( !limit_high_state ){ height = high_height; }
+            if( !limit_low_state  ){ height = low_height; }
 
             current_time = ros::Time::now().toSec();;
-            float delta_time = float(current_time - previous_time) / 1000.0; // [s]
+            float delta_time = current_time - previous_time; // [s]
             previous_time = current_time;
 
             current_enc = elevator_enc;
@@ -131,22 +136,24 @@ bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup:
 
             float elev_diff  = desired_height - height;
 
-            float max_speed = 10.0; // cm/s
+            float max_speed = 7.5;          // [cm/s]
 
-            desired_speed = (elev_diff / 5) * max_speed;
+            desired_speed = (elev_diff / 5.0) * max_speed;
             desired_speed = max( min( desired_speed, max_speed ), -1 * max_speed );
             if( abs(elev_diff) < tolerance ){ desired_speed = 0; }
 
-            int elevatorPWM  = elevatorControl.motorControl(desired_speed, elevatorVelocity, delta_time);
+            float elevatorPWM  = elevatorControl.motorControl(desired_speed, elevatorVelocity, delta_time);
 
             elevatorMotor(elevatorPWM);
+
+            ros::spinOnce();
 
             loop_rate.sleep();
 
         }while( desired_speed != 0 );
 
     }else{
-        printf( "Desired Position out of range %f to %f", low_height, high_height );
+        printf( "Desired Position out of the range %f to %f", low_height, high_height );
     }
 
     elevatorMotor(0.0);
@@ -160,18 +167,35 @@ bool oms_reset( vmxpi_ros_bringup::reset::Request &req, vmxpi_ros_bringup::reset
 
     if( req.direction == 1 ){
         elevatorMotor( 0.3 );
-        while( limit_high_state ){ loop_rate.sleep(); }
+        while( limit_high_state ){ 
+            ros::spinOnce();
+            loop_rate.sleep(); 
+        }
         height = high_height;
-    }
-    else if (req.direction == -1){
+        ROS_INFO("new height is %f", height);
+        elevatorMotor( 0 );
+        return true;
+    }else if (req.direction == -1){
         elevatorMotor( -0.3 );
-        while( limit_low_state ){ loop_rate.sleep(); }
+        while( limit_low_state ){ 
+            ros::spinOnce();
+            loop_rate.sleep();
+        }
         height = low_height;
+        ROS_INFO("new height is %f", height);
+        elevatorMotor( 0 );
+        return true;
+    }else{
+        return false;
     }
+}
 
-    ROS_INFO("new height is %f", height);
+bool set_gripper( vmxpi_ros_bringup::set_gripper::Request &req, vmxpi_ros_bringup::set_gripper::Response &res ){
+    vmxpi_ros::Float msg;
+    msg.request.data = req.angle;
+    setAngle.call( msg );
 
-    elevatorMotor( 0 );
+    return true;
 }
 
 
@@ -200,3 +224,4 @@ void elevatorMotor( double pwm ){
     msg.data = pwm;
     set_m_pwm.publish(msg);
 }
+

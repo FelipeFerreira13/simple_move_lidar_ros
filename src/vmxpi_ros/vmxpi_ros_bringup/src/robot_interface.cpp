@@ -40,7 +40,7 @@ static double desired_back_speed, desired_right_speed, desired_left_speed;
 static double left_enc, right_enc, back_enc, elevator_enc;
 static double PI = 3.14159265;
 static double wheelRadius = 0.0625; //Wheel Radius
-static double frameRadius = 0.150;  //Frame Radius
+static double frameRadius = 0.15;  //Frame Radius
 static double ticksPerRev = 1464;   //Encoder Ticks per Revolution
 
 double cmd_vel_x, cmd_vel_y, cmd_vel_th;
@@ -111,7 +111,7 @@ class PID{
             else{
                 sumError = sumError + error;
 
-                double maxSum = 5;
+                double maxSum = 2;
                 if( sumError > maxSum ){ sumError = maxSum; }
                 else if( sumError < -maxSum ){ sumError = -maxSum; }
             }
@@ -154,7 +154,7 @@ public:
     ros::ServiceClient enable_client, disable_client;
     ros::ServiceClient resetAngle, res_encoder_client;
 
-    ros::Publisher set_m0_pwm, set_m1_pwm, set_m2_pwm, set_m3_pwm;
+    ros::ServiceClient set_m0_pwm, set_m1_pwm, set_m2_pwm, set_m3_pwm;
     ros::ServiceClient stop_m0_pwm, stop_m1_pwm, stop_m2_pwm, stop_m3_pwm;
 
     ros::Subscriber enc0_pub, enc1_pub, enc2_pub, enc3_pub;
@@ -163,10 +163,10 @@ public:
 
     DynamicReconfig(ros::NodeHandle *nh) {
 
-        set_m0_pwm = nh->advertise<std_msgs::Float32>("motor/0/set_motor_pwm", 1);
-        set_m1_pwm = nh->advertise<std_msgs::Float32>("motor/1/set_motor_pwm", 1);
-        set_m2_pwm = nh->advertise<std_msgs::Float32>("motor/2/set_motor_pwm", 1);
-        set_m3_pwm = nh->advertise<std_msgs::Float32>("motor/3/set_motor_pwm", 1);
+        set_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/set_pwm");
+        set_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/set_pwm");
+        set_m2_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/2/set_pwm");
+        set_m3_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/3/set_pwm");
 
         stop_m0_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/0/stop_motor");
         stop_m1_pwm = nh->serviceClient<vmxpi_ros_motor::pwm>("motor/1/stop_motor");
@@ -277,13 +277,10 @@ public:
 
         ros::Duration(1).sleep();
 
-        std_msgs::Float32 msg;
-        msg.data = 0.0;
-
-        set_m0_pwm.publish(msg);
-        set_m1_pwm.publish(msg);
-        set_m2_pwm.publish(msg);
-        set_m3_pwm.publish(msg);
+        set_m0_pwm.call(msg1);
+        set_m1_pwm.call(msg1);
+        set_m2_pwm.call(msg1);
+        set_m3_pwm.call(msg1);
 
     }
 
@@ -318,20 +315,29 @@ public:
 
     void publish_motors()
     {
-        if ( desired_left_speed == 0 && desired_back_speed == 0 && desired_right_speed == 0 ){
-            stop_motors();
+        static double desired_left_speed_prev = 0, desired_back_speed_prev = 0, desired_right_speed_prev = 0;
+
+
+        if ( desired_left_speed == desired_left_speed_prev && 
+                   desired_back_speed == desired_back_speed_prev && desired_right_speed == desired_right_speed_prev ){}
+        else if ( desired_left_speed == 0 && desired_back_speed == 0 && desired_right_speed == 0 ){
+            stop_motors();                    
         }else{
-            std_msgs::Float32 msg;
+            vmxpi_ros_motor::pwm msg;
+            
+            msg.request.pwm = desired_left_speed;
+            set_m0_pwm.call(msg);
 
-            msg.data = desired_left_speed;
-            set_m0_pwm.publish(msg);
+            msg.request.pwm = desired_back_speed;
+            set_m1_pwm.call(msg);
 
-            msg.data = desired_back_speed;
-            set_m1_pwm.publish(msg);
-
-            msg.data = desired_right_speed;
-            set_m2_pwm.publish(msg);
+            msg.request.pwm = desired_right_speed;
+            set_m2_pwm.call(msg);
         }
+
+        desired_left_speed_prev  = desired_left_speed;
+        desired_back_speed_prev  = desired_back_speed;
+        desired_right_speed_prev = desired_right_speed;
     }
 
     void callback(vmxpi_ros_bringup::MotorSpeedConfig &config, uint32_t level) {
@@ -376,7 +382,7 @@ int main(int argc, char **argv) {
     ros::AsyncSpinner spinner(4);
     spinner.start();
 
-    ros::Subscriber cmd_vel_sub = nh.subscribe("/cmd_vel", 10, cmd_vel_callback);
+    ros::Subscriber cmd_vel_sub = nh.subscribe("/cmd_vel", 1, cmd_vel_callback);
 
     SharpROS sensor_left       ( &nh, &vmx, 22 );
     SharpROS sensor_right      ( &nh, &vmx, 23 );
