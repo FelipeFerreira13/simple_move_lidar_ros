@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   base_controller
   odometry
   roscpp
+  vmxpi_ros_bringup
   std_msgs
   tf
   message_generation
