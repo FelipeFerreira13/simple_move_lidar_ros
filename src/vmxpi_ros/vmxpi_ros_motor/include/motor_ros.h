@@ -31,6 +31,7 @@ class MotorRos : public Utils{
 		VMXResourcePortIndex res_port_index_b;
 
 		ros::Subscriber motor_pwm;
+		ros::ServiceServer motor_pwm_srv;
 		ros::ServiceServer stop_motor;
        
 	public:
@@ -40,4 +41,5 @@ class MotorRos : public Utils{
 		// set a pwm from -1 to 1
 		void SetMotorPWM( const std_msgs::Float32::ConstPtr& msg );
 		bool StopMotor( vmxpi_ros_motor::pwm::Request &req, vmxpi_ros_motor::pwm::Response &res );
+		bool SetMotorPWMSrv( vmxpi_ros_motor::pwm::Request &req, vmxpi_ros_motor::pwm::Response &res );
 };
