@@ -389,10 +389,10 @@ int main(int argc, char **argv) {
     SharpROS sensor_front_left       ( &nh, &vmx, 24 );
     SharpROS sensor_front_right      ( &nh, &vmx, 25 );
 
-    DigitalInputROS limit_switch_high( &nh, &vmx, 8 );
-    DigitalInputROS limit_switch_low ( &nh, &vmx, 9 );
-    DigitalInputROS stop_button      ( &nh, &vmx, 10 );
-    DigitalInputROS start_button     ( &nh, &vmx, 11 );
+    DigitalInputROS limit_switch_high( &nh, &vmx, 8 , "limit_switch_high");
+    DigitalInputROS limit_switch_low ( &nh, &vmx, 9 , "limit_switch_low");
+    DigitalInputROS stop_button      ( &nh, &vmx, 10, "stop_button");
+    DigitalInputROS start_button     ( &nh, &vmx, 11, "start_button");
 
     EncoderRos encoder_0(&nh, &vmx, 0);     // Back
     EncoderRos encoder_1(&nh, &vmx, 1);     // Right

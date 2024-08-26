@@ -31,7 +31,7 @@ int main(int argc, char **argv)
    ros::NodeHandle nh; //Internal reference to the ROS node that the program will use to interact with the ROS system
    VMXPi vmx(true, (uint8_t)50); //Realtime bool and the update rate to use for the VMXPi AHRS/IMU interface, default is 50hz within a valid range of 4-200Hz
     
-   DigitalInputROS digital_in(&nh, &vmx, 8); // initialize an object of the class DigitalInputROS and set the channel of this object as 10
+   DigitalInputROS digital_in(&nh, &vmx, 8, "start"); // initialize an object of the class DigitalInputROS and set the channel of this object as 10
 
 
    while( ros::ok() ){  // runs the loop while ROS is running

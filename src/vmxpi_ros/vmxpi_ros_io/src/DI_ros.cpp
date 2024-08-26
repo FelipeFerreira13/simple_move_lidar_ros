@@ -1,6 +1,6 @@
 #include "DI_ros.h"
 
-DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel) :
+DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel, std::string name) :
 	io{&vmx->getIO()}, time{&vmx->getTime()}, channel_index(channel) {
 	VMXErrorCode vmxerr;
 	DIOConfig dio_config;
@@ -16,10 +16,10 @@ DigitalInputROS::DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channe
 
 
 	
-	std::string topic_name = "channel/" + std::to_string(channel_index) + "/digital_in/";
+	std::string topic_name = "robot/digital_in/" + name;
 	// di_cm_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_cm", 1);
 	// di_in_pub = nh->advertise<std_msgs::Float32>(topic_name + "get_inch", 1);
-	di_pub = nh->advertise<std_msgs::Bool>(topic_name + "state", 1);
+	di_pub = nh->advertise<std_msgs::Bool>(topic_name + "/state", 1);
 
 	
 	runth = std::thread(&DigitalInputROS::Run_t, this);

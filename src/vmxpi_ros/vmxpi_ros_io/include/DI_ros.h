@@ -24,7 +24,7 @@ class DigitalInputROS : public Utils {
 
 		bool GetRawValue();
 	public:
-		DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel);
+		DigitalInputROS(ros::NodeHandle *nh, VMXPi *vmx, uint8_t channel, std::string name);
 		
 		~DigitalInputROS();
 		
