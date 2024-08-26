@@ -212,19 +212,3 @@ add_dependencies(main_node
 	digitalin_ros
 	digitalout_ros
   	${PROJECT_NAME}_gencfg)
-
-
-add_executable(oms_node src/object_management.cpp)
-target_link_libraries(oms_node PRIVATE
-	vmxpi_hal 
-	encoder_ros
-	motor_ros
-  	iowd_ros
-	${catkin_LIBRARIES}
-)
-add_dependencies(oms_node 
-	vmxpi_hal 
-	encoder_ros
-	motor_ros
-	iowd_ros
-  	${PROJECT_NAME}_gencfg)
