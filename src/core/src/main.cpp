@@ -4,40 +4,12 @@
  * Release date: 27/06/2024
  * 
  * Modified by: Felipe Ferreira
- * Last modification date: 
- * New version:
+ * Last modification date: 02/10/2024
+ * New version: 1.0.1.0
 
 *************************************/
 
-#include <ros/ros.h>
-#include <tf/transform_broadcaster.h>
-#include <geometry_msgs/Pose.h>
-
-// Move Service
-#include "base_controller/move_goal.h"
-// Odometry Service
-#include "odometry/pose_odom.h"
-// OMS services
-#include "vmxpi_ros_bringup/set_height.h"
-#include "vmxpi_ros_bringup/set_gripper.h"
-#include "vmxpi_ros_bringup/reset.h"
-
-
-ros::ServiceClient move_goal_c;
-ros::ServiceClient set_position_c;
-ros::ServiceClient set_height_c;  
-ros::ServiceClient reset_height_c; 
-ros::ServiceClient set_gripper_c; 
-
-// Functions prototypes
-void set_position( double x, double y, double th );
-void position_driver( double x, double y, double th );
-void set_height( double height );
-void reset_height( int direction );
-void set_gripper( int angle );
-
-enum GRIPPER { GRIPPER_OPEN = 50, GRIPPER_CLOSE = 150 };
-
+#include "main.h"
 
 int main(int argc, char **argv)
 {
@@ -46,11 +18,11 @@ int main(int argc, char **argv)
 
     ROS_INFO("main node is now started");
 
-    move_goal_c    = nh.serviceClient<base_controller::move_goal>    ("base_controller/goal");
+    move_goal_c    = nh.serviceClient<base_controller::move_goal>    ("base_controller/goal" );
     set_position_c = nh.serviceClient<odometry::pose_odom>           ("odometry/set_position");
-    set_height_c   = nh.serviceClient<vmxpi_ros_bringup::set_height> ("oms/set_height");
-    reset_height_c = nh.serviceClient<vmxpi_ros_bringup::reset>      ("oms/reset");
-    set_gripper_c  = nh.serviceClient<vmxpi_ros_bringup::set_gripper>("oms/set_gripper");
+    set_height_c   = nh.serviceClient<vmxpi_ros_bringup::set_height> ("oms/set_height"       );
+    reset_height_c = nh.serviceClient<vmxpi_ros_bringup::reset>      ("oms/reset"            );
+    set_gripper_c  = nh.serviceClient<vmxpi_ros_bringup::set_gripper>("oms/set_gripper"      );
 
     ros::Duration(10).sleep();
 
@@ -78,47 +50,3 @@ int main(int argc, char **argv)
 
     return 0;
 };
-
-void set_position( double x, double y, double th ){
-    odometry::pose_odom pose;
-
-    pose.request.x = x;
-    pose.request.y = y;
-    pose.request.th = th;
-
-    set_position_c.call( pose );
-}
-
-void position_driver( double x, double y, double th ){
-    base_controller::move_goal goal;
-
-    goal.request.x = x;
-    goal.request.y = y;
-    goal.request.th = th;
-
-    move_goal_c.call( goal );
-}
-
-void set_height( double height ){
-    vmxpi_ros_bringup::set_height position;
-
-    position.request.height = height;
-
-    set_height_c.call(position);
-}
-
-void reset_height( int direction ){
-    vmxpi_ros_bringup::reset reset;
-
-    reset.request.direction = direction;
-
-    reset_height_c.call( reset );
-}
-
-void set_gripper( int angle ){
-    vmxpi_ros_bringup::set_gripper gripper;
-
-    gripper.request.angle = angle;
-
-    set_gripper_c.call( gripper );
-}
