@@ -8,9 +8,9 @@
 
 #include "vmxpi_ros/Float.h"
 
-#include "vmxpi_ros_bringup/set_height.h"
-#include "vmxpi_ros_bringup/set_gripper.h"
-#include "vmxpi_ros_bringup/reset.h"
+#include "oms/set_height.h"
+#include "oms/set_gripper.h"
+#include "oms/reset.h"
 
 
 #define ticksPerRev  1464   //Encoder pulses
@@ -57,9 +57,9 @@ class simpleControl{
         float motorControl(float desiredSpeed, float currentSpeed, float delta_time);
 };
 
-bool oms_driver ( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup::set_height::Response &res );
-bool set_gripper( vmxpi_ros_bringup::set_gripper::Request &req, vmxpi_ros_bringup::set_gripper::Response &res );
-bool oms_reset  ( vmxpi_ros_bringup::reset::Request &req, vmxpi_ros_bringup::reset::Response &res );
+bool oms_driver ( oms::set_height::Request &req, oms::set_height::Response &res );
+bool set_gripper( oms::set_gripper::Request &req, oms::set_gripper::Response &res );
+bool oms_reset  ( oms::reset::Request &req, oms::reset::Response &res );
 
 void encCallback(const std_msgs::Int32::ConstPtr& msg){ 
     elevator_enc = msg->data;

@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 }
 
 
-bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup::set_height::Response &res ){
+bool oms_driver( oms::set_height::Request &req, oms::set_height::Response &res ){
 
     simpleControl elevatorControl;
     elevatorControl.max_motor_speed = 15;
@@ -86,7 +86,7 @@ bool oms_driver( vmxpi_ros_bringup::set_height::Request &req, vmxpi_ros_bringup:
 }
 
 // -1 to send it down and 1 to send it up
-bool oms_reset( vmxpi_ros_bringup::reset::Request &req, vmxpi_ros_bringup::reset::Response &res ){
+bool oms_reset( oms::reset::Request &req, oms::reset::Response &res ){
     
     ros::Rate loop_rate(5);
 
@@ -115,7 +115,7 @@ bool oms_reset( vmxpi_ros_bringup::reset::Request &req, vmxpi_ros_bringup::reset
     }
 }
 
-bool set_gripper( vmxpi_ros_bringup::set_gripper::Request &req, vmxpi_ros_bringup::set_gripper::Response &res ){
+bool set_gripper( oms::set_gripper::Request &req, oms::set_gripper::Response &res ){
     vmxpi_ros::Float msg;
     msg.request.data = req.angle;
     setAngle.call( msg );
