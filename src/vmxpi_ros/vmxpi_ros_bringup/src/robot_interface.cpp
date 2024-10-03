@@ -39,9 +39,9 @@ static double leftVelocity, rightVelocity, backVelocity, elevatorVelocity;
 static double desired_back_speed, desired_right_speed, desired_left_speed;
 static double left_enc, right_enc, back_enc, elevator_enc;
 static double PI = 3.14159265;
-static double wheelRadius = 0.0625; //Wheel Radius
+static double wheelRadius = 0.051; //Wheel Radius
 static double frameRadius = 0.15;  //Frame Radius
-static double ticksPerRev = 1464;   //Encoder Ticks per Revolution
+static double ticksPerRev = 1464;  //Encoder Ticks per Revolution
 
 double cmd_vel_x, cmd_vel_y, cmd_vel_th;
 double Rpm_conversion = ((2 * PI) / 60.0) * wheelRadius; //RPM to m/s
@@ -384,15 +384,15 @@ int main(int argc, char **argv) {
 
     ros::Subscriber cmd_vel_sub = nh.subscribe("/cmd_vel", 1, cmd_vel_callback);
 
-    SharpROS sensor_left       ( &nh, &vmx, 22 );
-    SharpROS sensor_right      ( &nh, &vmx, 23 );
-    SharpROS sensor_front_left       ( &nh, &vmx, 24 );
-    SharpROS sensor_front_right      ( &nh, &vmx, 25 );
+    SharpROS sensor_left        ( &nh, &vmx, 22 );
+    SharpROS sensor_right       ( &nh, &vmx, 23 );
+    SharpROS sensor_front_left  ( &nh, &vmx, 24 );
+    SharpROS sensor_front_right ( &nh, &vmx, 25 );
 
-    DigitalInputROS limit_switch_high( &nh, &vmx, 8 , "limit_switch_high");
-    DigitalInputROS limit_switch_low ( &nh, &vmx, 9 , "limit_switch_low");
-    DigitalInputROS stop_button      ( &nh, &vmx, 10, "stop_button");
-    DigitalInputROS start_button     ( &nh, &vmx, 11, "start_button");
+    DigitalInputROS limit_switch_high ( &nh, &vmx, 8 , "limit_switch_high" );
+    DigitalInputROS limit_switch_low  ( &nh, &vmx, 9 , "limit_switch_low"  );
+    DigitalInputROS stop_button       ( &nh, &vmx, 10, "stop_button"       );
+    DigitalInputROS start_button      ( &nh, &vmx, 11, "start_button"      );
 
     EncoderRos encoder_0(&nh, &vmx, 0);     // Back
     EncoderRos encoder_1(&nh, &vmx, 1);     // Right
