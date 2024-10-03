@@ -70,3 +70,9 @@ Implements the basic controls of the robot's object management system.
 
 ## VMXPI_ROS
 Implements the hardware interface. ( For this project it was used a VMX-pi )
+
+## CONTACT
+If you need support or have any suggestions or proposals please let me know:
+
+- Send email to felipeferreira1310@hotmail.com with a clear description of your needs.
+- Github Issues.
