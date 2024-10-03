@@ -49,7 +49,10 @@ Implements the basic controls of the robot's object management system.
 ### msgs
 | **Name**            | **Request**                      | **Response** |
 |---------------------|----------------------------------|--------------|
-| oms/set_height | float64 x, float64 y, float64 th | bool status  |
+| oms::set_height     | float64 height                   | bool status  |
+| oms::reset          | int32 direction                  | bool status  |
+| oms::set_gripper    | float32 angle                    | bool status  |
+
 
 ### Publisher
 | **Topic**               | **msg**           | **Description**                      |
@@ -60,10 +63,46 @@ Implements the basic controls of the robot's object management system.
 ### Service Server
 | **Topic**               | **msg**            | **Description**                             |
 |-------------------------|--------------------|---------------------------------------------|
-| `oms/set_height` | oms::set_height | Redifine the robot position in X, Y and Th |
-| `oms/reset` | oms::reset | Redifine the robot position in X, Y and Th |
-| `oms/set_gripper` | oms::set_gripper | Redifine the robot position in X, Y and Th |
+| `oms/set_height` | oms::set_height | Driver the robot to the desired height |
+| `oms/reset` | oms::reset | Send the oms either up (direction = 1) or down (direction=-1) to reset the oms elevation |
+| `oms/set_gripper` | oms::set_gripper | Define the desired gripper position |
 
 
 ## VMXPI_ROS
 Implements the hardware interface. ( For this project it was used a VMX-pi )
+
+### Pinout
+| **Pin** | **Device** | **Class** |
+|:-:|--------------------|------------------|
+| `0` and `1` | Encoder Back | EncoderRos |
+| `2` and `3` | Encoder Right | EncoderRos |
+| `4` and `5` | Encoder Left | EncoderRos |
+| `6` and `7` | Encoder Elevator | EncoderRos |
+| `8` | Limit Switch High | DigitalInputROS |
+| `9` | Limit Switch Low | DigitalInputROS |
+| `10` | Stop Button  | DigitalInputROS |
+| `11` | Start Button | DigitalInputROS |
+| `12` | Gripper Servo | ServoROS |
+| `14` and `15` | Motor Elevator | MotorRos |
+| `16` and `17` | Motor Right | MotorRos |
+| `18` and `19` | Motor Back | MotorRos |
+| `20` and `21` | Motor Left | MotorRos |
+| `22` | Sensor Left | SharpROS |
+| `23` | Sensor Right | SharpROS |
+| `24` | Sensor Front Left | SharpROS |
+| `25` | Sensor Front Right | SharpROS |
+
+
+
+
+
+
+
+
+
+
+## CONTACT
+If you need support or have any suggestions or proposals please let me know:
+
+- Send email to felipeferreira1310@hotmail.com with a clear description of your needs.
+- Github Issues.
