@@ -71,6 +71,36 @@ Implements the basic controls of the robot's object management system.
 ## VMXPI_ROS
 Implements the hardware interface. ( For this project it was used a VMX-pi )
 
+### Pinout
+| **Pin** | **Device** | **Class** |
+|:-:|--------------------|------------------|
+| `0` and `1` | Encoder Back | EncoderRos |
+| `2` and `3` | Encoder Right | EncoderRos |
+| `4` and `5` | Encoder Left | EncoderRos |
+| `6` and `7` | Encoder Elevator | EncoderRos |
+| `8` | Limit Switch High | DigitalInputROS |
+| `9` | Limit Switch Low | DigitalInputROS |
+| `10` | Stop Button  | DigitalInputROS |
+| `11` | Start Button | DigitalInputROS |
+| `12` | Gripper Servo | ServoROS |
+| `14` and `15` | Motor Elevator | MotorRos |
+| `16` and `17` | Motor Right | MotorRos |
+| `18` and `19` | Motor Back | MotorRos |
+| `20` and `21` | Motor Left | MotorRos |
+| `22` | Sensor Left | SharpROS |
+| `23` | Sensor Right | SharpROS |
+| `24` | Sensor Front Left | SharpROS |
+| `25` | Sensor Front Right | SharpROS |
+
+
+
+
+
+
+
+
+
+
 ## CONTACT
 If you need support or have any suggestions or proposals please let me know:
 
