@@ -82,11 +82,11 @@ Implements the hardware interface. ( For this project it was used a VMX-pi )
 | `9` | Limit Switch Low | DigitalInputROS |
 | `10` | Stop Button  | DigitalInputROS |
 | `11` | Start Button | DigitalInputROS |
-| `12` | Gripper Servo | ServoROS |
-| `14` and `15` | Motor Elevator | MotorRos |
-| `16` and `17` | Motor Right | MotorRos |
-| `18` and `19` | Motor Back | MotorRos |
-| `20` and `21` | Motor Left | MotorRos |
+| `16` | Gripper Servo | ServoROS |
+| `17` | Elevator Servo | ServoROS |
+| M0 | Motor Back | MotorRos |
+| M1 | Motor Left | MotorRos |
+| M2 | Motor Right | MotorRos |
 | `22` | Sensor Left | SharpROS |
 | `23` | Sensor Right | SharpROS |
 | `24` | Sensor Front Left | SharpROS |
