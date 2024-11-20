@@ -4,8 +4,8 @@
  * Release date: 27/06/2024
  * 
  * Modified by: Felipe Ferreira
- * Last modification date: 08/07/2024
- * New version: 1.0.0.1
+ * Last modification date: 20/11/2024
+ * New version: 1.0.0.3
 
 *************************************/
 
@@ -65,7 +65,9 @@ int main(int argc, char** argv){
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 5);
   ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>("imu/data", 1);
 
-   ros::ServiceServer service = n.advertiseService("odometry/set_position", reference);
+  ros::Publisher robot_pos = n.advertise<geometry_msgs::Vector3>("robot/position", 1);
+
+  ros::ServiceServer service = n.advertiseService("odometry/set_position", reference);
   
   tf::TransformBroadcaster odom_broadcaster;
   geometry_msgs::Quaternion odom_quat;
@@ -101,6 +103,12 @@ int main(int argc, char** argv){
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
     odom_quat = tf::createQuaternionMsgFromYaw((PI/180) * th);
+
+    geometry_msgs::Vector3 pos;
+    pos.x = x;
+    pos.y = y;
+    pos.z = th;
+    robot_pos.publish( pos );
 
     imu_data.header.stamp = current_time;
     imu_data.header.frame_id = "imu_link";
